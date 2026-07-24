@@ -351,7 +351,7 @@
       updateTimer();
       renderBoard();
       updateMineCounter();
-      resetBtn.textContent = '😊';
+      resetBtn.textContent = '-_-';
 
       // кнопка сброса
       resetBtn.addEventListener('click', resetGame);
