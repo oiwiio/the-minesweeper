@@ -1,0 +1,340 @@
+  (function() {
+    // НАСТРОЙКИ (стандартный beginner 9x9, 10 мин) 
+    const ROWS = 9;
+    const COLS = 9;
+    const TOTAL_MINES = 10;
+
+    // Состояние игры
+    let board = [];              // 2D: { mine, number, revealed, flagged }
+    let gameActive = false;      // true когда игра идёт (можно кликать)
+    let gameOver = false;        // true если проиграли или выиграли
+    let firstClick = true;      // для генерации мин после первого клика
+    let flagCount = 0;
+    let revealedCount = 0;
+    let timerInterval = null;
+    let seconds = 0;
+    let timerStarted = false;
+
+    // DOM элементы
+    const boardEl = document.getElementById('board');
+    const mineCounterEl = document.getElementById('mineCounter');
+    const timerDisplayEl = document.getElementById('timerDisplay');
+    const resetBtn = document.getElementById('resetButton');
+
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ 
+    function formatNumber(n) {
+      return String(n).padStart(3, '0').slice(0, 3);
+    }
+
+    function updateMineCounter() {
+      const remaining = TOTAL_MINES - flagCount;
+      mineCounterEl.textContent = formatNumber(remaining);
+    }
+
+    function updateTimer() {
+      timerDisplayEl.textContent = formatNumber(seconds);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        timerStarted = false;
+      }
+    }
+
+    function startTimer() {
+      if (timerStarted || gameOver) return;
+      timerStarted = true;
+      seconds = 0;
+      updateTimer();
+      timerInterval = setInterval(() => {
+        seconds++;
+        if (seconds > 999) seconds = 999;
+        updateTimer();
+      }, 1000);
+    }
+
+    // СОЗДАНИЕ ИГРОВОГО ПОЛЯ (без мин) 
+    function createEmptyBoard() {
+      const newBoard = [];
+      for (let r = 0; r < ROWS; r++) {
+        const row = [];
+        for (let c = 0; c < COLS; c++) {
+          row.push({
+            mine: false,
+            number: 0,
+            revealed: false,
+            flagged: false
+          });
+        }
+        newBoard.push(row);
+      }
+      return newBoard;
+    }
+
+    // РАССТАВЛЯЕМ МИНЫ (кроме клетки firstR, firstC)
+    function placeMines(firstR, firstC) {
+      let placed = 0;
+      while (placed < TOTAL_MINES) {
+        const r = Math.floor(Math.random() * ROWS);
+        const c = Math.floor(Math.random() * COLS);
+        // не ставим мину в первую клетку и её соседей (чтобы первый клик был безопасным)
+        if (board[r][c].mine) continue;
+        if (Math.abs(r - firstR) <= 1 && Math.abs(c - firstC) <= 1) continue;
+        board[r][c].mine = true;
+        placed++;
+      }
+
+      // Подсчёт чисел (количество мин вокруг)
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (board[r][c].mine) continue;
+          let count = 0;
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (dr === 0 && dc === 0) continue;
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc].mine) count++;
+            }
+          }
+          board[r][c].number = count;
+        }
+      }
+    }
+
+    // ОТРИСОВКА ДОСКИ 
+    function renderBoard() {
+      boardEl.innerHTML = '';
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = board[r][c];
+          const div = document.createElement('div');
+          div.className = 'cell';
+          div.dataset.r = r;
+          div.dataset.c = c;
+
+          if (!cell.revealed) {
+            div.classList.add('covered');
+            if (cell.flagged) {
+              div.classList.add('flagged');
+            }
+          } else {
+            // открытая клетка
+            if (cell.mine) {
+              div.classList.add('mine-shown');
+            } else if (cell.number > 0) {
+              div.dataset.number = cell.number;
+              div.textContent = cell.number;
+            } else {
+              // пустая
+            }
+          }
+
+          // обработчики событий
+          div.addEventListener('click', onCellClick);
+          div.addEventListener('contextmenu', onCellRightClick);
+          boardEl.appendChild(div);
+        }
+      }
+    }
+
+    // Обновление отображения конкретной клетки (без перерисовки всей доски)
+    function updateCellElement(r, c) {
+      const index = r * COLS + c;
+      const child = boardEl.children[index];
+      if (!child) return;
+      const cell = board[r][c];
+
+      // сброс классов и содержимого
+      child.className = 'cell';
+      child.dataset.number = '';
+      child.textContent = '';
+
+      if (!cell.revealed) {
+        child.classList.add('covered');
+        if (cell.flagged) {
+          child.classList.add('flagged');
+        }
+      } else {
+        if (cell.mine) {
+          child.classList.add('mine-shown');
+        } else if (cell.number > 0) {
+          child.dataset.number = cell.number;
+          child.textContent = cell.number;
+        } else {
+          // пустая
+        }
+      }
+    }
+
+    // ЛОГИКА ИГРЫ 
+
+    // Рекурсивное открытие пустых клеток (DFS)
+    function revealEmptyCells(r, c) {
+      const stack = [[r, c]];
+      while (stack.length) {
+        const [row, col] = stack.pop();
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const nr = row + dr, nc = col + dc;
+            if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+            const neighbor = board[nr][nc];
+            if (neighbor.revealed || neighbor.flagged || neighbor.mine) continue;
+            // открываем
+            neighbor.revealed = true;
+            revealedCount++;
+            updateCellElement(nr, nc);
+            if (neighbor.number === 0) {
+              stack.push([nr, nc]);
+            }
+          }
+        }
+      }
+    }
+
+    // Обработка клика по клетке (открыть)
+    function onCellClick(e) {
+      e.preventDefault();
+      const div = e.currentTarget;
+      const r = parseInt(div.dataset.r);
+      const c = parseInt(div.dataset.c);
+      if (!gameActive || gameOver) return;
+      const cell = board[r][c];
+      if (cell.flagged || cell.revealed) return;
+
+      // Первый клик: генерируем мины и запускаем таймер
+      if (firstClick) {
+        placeMines(r, c);
+        firstClick = false;
+        startTimer();
+        // обновим счётчик мин (без изменений, но для красоты)
+        updateMineCounter();
+      }
+
+      // Если попали на мину — конец игры
+      if (cell.mine) {
+        // проигрыш
+        gameActive = false;
+        gameOver = true;
+        stopTimer();
+        // открываем все мины
+        revealAllMines();
+        // помечаем взорванную
+        const idx = r * COLS + c;
+        if (boardEl.children[idx]) {
+          boardEl.children[idx].classList.add('mine-exploded');
+        }
+        resetBtn.textContent = '😵';
+        return;
+      }
+
+      // Открываем клетку
+      cell.revealed = true;
+      revealedCount++;
+      updateCellElement(r, c);
+
+      // Если число 0 — открываем соседей
+      if (cell.number === 0) {
+        revealEmptyCells(r, c);
+      }
+
+      // Проверка на победу
+      if (revealedCount === ROWS * COLS - TOTAL_MINES) {
+        gameActive = false;
+        gameOver = true;
+        stopTimer();
+        resetBtn.textContent = '😎';
+        // автоматически ставим флаги на мины (для красоты)
+        for (let rr = 0; rr < ROWS; rr++) {
+          for (let cc = 0; cc < COLS; cc++) {
+            const ccell = board[rr][cc];
+            if (ccell.mine && !ccell.flagged) {
+              ccell.flagged = true;
+              flagCount++;
+              updateCellElement(rr, cc);
+            }
+          }
+        }
+        updateMineCounter();
+      }
+    }
+
+    // Обработка правого клика (флаг)
+    function onCellRightClick(e) {
+      e.preventDefault();
+      const div = e.currentTarget;
+      const r = parseInt(div.dataset.r);
+      const c = parseInt(div.dataset.c);
+      if (!gameActive || gameOver) return;
+      const cell = board[r][c];
+      if (cell.revealed) return;
+
+      if (!cell.flagged) {
+        cell.flagged = true;
+        flagCount++;
+      } else {
+        cell.flagged = false;
+        flagCount--;
+      }
+      updateMineCounter();
+      updateCellElement(r, c);
+    }
+
+    // Открыть все мины (при проигрыше)
+    function revealAllMines() {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = board[r][c];
+          if (cell.mine && !cell.revealed) {
+            cell.revealed = true;
+            updateCellElement(r, c);
+          }
+        }
+      }
+    }
+
+    // СБРОС ИГРЫ (новая игра) 
+    function resetGame() {
+      stopTimer();
+      timerStarted = false;
+      seconds = 0;
+      updateTimer();
+      gameActive = true;
+      gameOver = false;
+      firstClick = true;
+      flagCount = 0;
+      revealedCount = 0;
+      resetBtn.textContent = '😊';
+
+      board = createEmptyBoard();
+      // не расставляем мины до первого клика
+      renderBoard();
+      updateMineCounter();
+    }
+
+    // ИНИЦИАЛИЗАЦИЯ 
+    function init() {
+      // создаём пустую доску (без мин)
+      board = createEmptyBoard();
+      gameActive = true;
+      gameOver = false;
+      firstClick = true;
+      flagCount = 0;
+      revealedCount = 0;
+      seconds = 0;
+      timerStarted = false;
+      updateTimer();
+      renderBoard();
+      updateMineCounter();
+      resetBtn.textContent = '😊';
+
+      // кнопка сброса
+      resetBtn.addEventListener('click', resetGame);
+
+      // предотвращаем контекстное меню на доске
+      boardEl.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    init();
+  })();
