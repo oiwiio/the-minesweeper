@@ -1,4 +1,4 @@
-  (function() {
+(function() {
     // НАСТРОЙКИ (стандартный beginner 9x9, 10 мин) 
     const ROWS = 9;
     const COLS = 9;
@@ -23,7 +23,10 @@
 
     // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ 
     function formatNumber(n) {
-      return String(n).padStart(3, '0').slice(0, 3);
+      const negative = n < 0;
+      const clamped = Math.min(Math.abs(n), 999);
+      const digits = String(clamped).padStart(negative ? 2 : 3, '0');
+      return negative ? '-' + digits : digits;
     }
 
     function updateMineCounter() {
@@ -218,8 +221,9 @@
         gameActive = false;
         gameOver = true;
         stopTimer();
-        // открываем все мины
+        // открываем все мины (кроме уже верно отфлаженных) и отмечаем неверные флаги
         revealAllMines();
+        markWrongFlags();
         // помечаем взорванную
         const idx = r * COLS + c;
         if (boardEl.children[idx]) {
@@ -281,14 +285,34 @@
       updateCellElement(r, c);
     }
 
-    // Открыть все мины (при проигрыше)
+    // Открыть все мины (при проигрыше). Верно отфлаженные мины не трогаем — пусть остаётся флаг.
     function revealAllMines() {
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const cell = board[r][c];
-          if (cell.mine && !cell.revealed) {
+          if (cell.mine && !cell.revealed && !cell.flagged) {
             cell.revealed = true;
             updateCellElement(r, c);
+          } else if (cell.mine && cell.flagged) {
+            const idx = r * COLS + c;
+            if (boardEl.children[idx]) {
+              boardEl.children[idx].classList.add('flag-correct');
+            }
+          }
+        }
+      }
+    }
+
+    // Помечаем флаги, поставленные не на мину (чтобы было видно ошибку при проигрыше)
+    function markWrongFlags() {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = board[r][c];
+          if (cell.flagged && !cell.mine) {
+            const idx = r * COLS + c;
+            if (boardEl.children[idx]) {
+              boardEl.children[idx].classList.add('flag-wrong');
+            }
           }
         }
       }
@@ -334,6 +358,20 @@
 
       // предотвращаем контекстное меню на доске
       boardEl.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      // смайлик "удивляется", пока зажата клетка (левой кнопкой)
+      boardEl.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 || !gameActive || gameOver) return;
+        resetBtn.textContent = '😮';
+      });
+      document.addEventListener('mouseup', () => {
+        if (!gameActive || gameOver) return;
+        resetBtn.textContent = '😊';
+      });
+      boardEl.addEventListener('mouseleave', () => {
+        if (!gameActive || gameOver) return;
+        resetBtn.textContent = '😊';
+      });
     }
 
     init();
