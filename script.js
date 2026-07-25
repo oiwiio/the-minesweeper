@@ -25,6 +25,7 @@
     const modeFlagBtn = document.getElementById('modeFlag');
     const diffButtons = Array.from(document.querySelectorAll('.diff-btn'));
     const gameContainerEl = document.querySelector('.game-container');
+    const floatingResetBtn = document.getElementById('floatingReset');
 
     // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ 
     function formatNumber(n) {
@@ -275,6 +276,7 @@
         gameContainerEl.classList.add('lose');
         boardEl.classList.add('lose');
         document.body.classList.add('lose');
+        floatingResetBtn.classList.add('lose');
         return;
       }
 
@@ -370,16 +372,21 @@
       }
     }
 
-    // РАЗМЕР КЛЕТКИ ПОД ЭКРАН (чтобы 24x24 не вылезало за пределы телефона)
+    // РАЗМЕР КЛЕТКИ ПОД ЭКРАН
+    // Если поле целиком помещается — подгоняем размер клетки под ширину экрана.
+    // Если не помещается даже на комфортном для тапа размере (большие поля на узких экранах) —
+    // не сжимаем клетки до нечитаемых пикселей, а оставляем комфортный размер и даём доске
+    // скроллиться внутри своей рамки (см. overflow в .board), чтобы не пришлось зумить всю страницу.
     function computeCellSizePx() {
       const gapPx = 3;
       const boardPaddingPx = 16; // 8px с каждой стороны
       const margin = 40; // отступ от края экрана
+      const comfortableMin = 22; // ниже этого тапать пальцем неудобно
+      const maxSize = 37;
       const availableWidth = Math.min(window.innerWidth - margin, 640);
       const totalGaps = (COLS - 1) * gapPx;
-      let size = (availableWidth - boardPaddingPx - totalGaps) / COLS;
-      size = Math.max(13, Math.min(size, 37));
-      return size;
+      const fitSize = (availableWidth - boardPaddingPx - totalGaps) / COLS;
+      return Math.max(comfortableMin, Math.min(fitSize, maxSize));
     }
 
     function applyBoardSizing() {
@@ -413,6 +420,7 @@
       gameContainerEl.classList.remove('lose');
       document.body.classList.remove('lose');
       boardEl.classList.remove('lose');
+      floatingResetBtn.classList.remove('lose');
 
       board = createEmptyBoard();
       // не расставляем мины до первого клика
@@ -440,6 +448,9 @@
 
       // кнопка сброса
       resetBtn.addEventListener('click', resetGame);
+
+      // плавающая кнопка перезапуска (удобно на телефоне, когда экран приближен)
+      floatingResetBtn.addEventListener('click', resetGame);
 
       // предотвращаем контекстное меню на доске
       boardEl.addEventListener('contextmenu', (e) => e.preventDefault());

@@ -31,6 +31,7 @@ body.lose::before {
   50% { opacity: 0.8; }
 }
 .game-container {
+  position: relative;
   background: #0d0d16;
   padding: 1.6rem 1.6rem 1.4rem;
   border-radius: 10px;
@@ -130,6 +131,13 @@ body.lose::before {
   border-radius: 8px;
   border: 1px solid #1f2333;
   transition: border-color 0.4s ease, box-shadow 0.4s ease;
+  max-width: calc(100vw - 2.5rem);
+  max-height: 60vh;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .board.lose {
   animation: boardLoseGlow 1.6s ease-in-out infinite;
@@ -345,5 +353,43 @@ body.lose::before {
   .footer {
     font-size: 0.7rem;
     padding: 0.3rem 0.9rem;
+  }
+}
+
+.floating-reset {
+  position: fixed;
+  right: 1.1rem;
+  bottom: 1.1rem;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 50%;
+  background: #12121e;
+  border: 1px solid #23273a;
+  color: #00ffd0;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 0 10px rgba(0, 255, 208, 0.25), 0 6px 16px rgba(0, 0, 0, 0.6);
+  transition: transform 0.1s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+  z-index: 50;
+  -webkit-tap-highlight-color: transparent;
+}
+.floating-reset:active {
+  transform: scale(0.9);
+}
+.floating-reset.lose {
+  animation: floatingResetGlow 1.6s ease-in-out infinite;
+}
+@keyframes floatingResetGlow {
+  0%, 100% {
+    border-color: rgba(255, 47, 110, 0.5);
+    box-shadow: 0 0 14px rgba(255, 47, 110, 0.45), 0 6px 16px rgba(0, 0, 0, 0.6);
+  }
+  50% {
+    border-color: rgba(255, 47, 110, 0.95);
+    box-shadow: 0 0 26px rgba(255, 47, 110, 0.7), 0 6px 16px rgba(0, 0, 0, 0.6);
   }
 }
