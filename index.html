@@ -13,8 +13,18 @@
     <div class="smiley" id="resetButton">😊</div>
     <div class="mine-counter" id="timerDisplay">000</div>
   </div>
-  <div class="board" id="board"></div>
-  <div class="footer">💡 <span>левый клик</span> — открыть · <span>правый</span> — флаг</div>
+  <div class="play-area">
+    <div class="board" id="board"></div>
+    <div class="mode-panel">
+      <button class="mode-btn active" id="modeOpen" data-mode="reveal" type="button">
+        <span class="mode-icon">⛏</span><span class="mode-label">Открыть</span>
+      </button>
+      <button class="mode-btn" id="modeFlag" data-mode="flag" type="button">
+        <span class="mode-icon">⚑</span><span class="mode-label">Флаг</span>
+      </button>
+    </div>
+  </div>
+  <div class="footer">💡 <span>режим</span> задаёт тап по клетке · на ПК <span>ПКМ</span> — всегда флаг</div>
 </div>
   <script src="./script.js"> </script>
 </body>

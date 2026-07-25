@@ -14,12 +14,15 @@
     let timerInterval = null;
     let seconds = 0;
     let timerStarted = false;
+    let mode = 'reveal';         // 'reveal' или 'flag' — режим тапа (для мобильной панели)
 
     // DOM элементы
     const boardEl = document.getElementById('board');
     const mineCounterEl = document.getElementById('mineCounter');
     const timerDisplayEl = document.getElementById('timerDisplay');
     const resetBtn = document.getElementById('resetButton');
+    const modeOpenBtn = document.getElementById('modeOpen');
+    const modeFlagBtn = document.getElementById('modeFlag');
 
     // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ 
     function formatNumber(n) {
@@ -196,13 +199,20 @@
       }
     }
 
-    // Обработка клика по клетке (открыть)
+    // Обработка клика по клетке (открыть, либо флаг — если активен режим "флаг")
     function onCellClick(e) {
       e.preventDefault();
       const div = e.currentTarget;
       const r = parseInt(div.dataset.r);
       const c = parseInt(div.dataset.c);
       if (!gameActive || gameOver) return;
+
+      // Режим "флаг" (для телефонов): обычный тап ставит/снимает флаг
+      if (mode === 'flag') {
+        toggleFlag(r, c);
+        return;
+      }
+
       const cell = board[r][c];
       if (cell.flagged || cell.revealed) return;
 
@@ -264,13 +274,18 @@
       }
     }
 
-    // Обработка правого клика (флаг)
+    // Обработка правого клика (флаг) — общая логика вынесена в toggleFlag
     function onCellRightClick(e) {
       e.preventDefault();
       const div = e.currentTarget;
       const r = parseInt(div.dataset.r);
       const c = parseInt(div.dataset.c);
       if (!gameActive || gameOver) return;
+      toggleFlag(r, c);
+    }
+
+    // Поставить/снять флаг на клетке (используется и ПКМ, и тапом в режиме "флаг")
+    function toggleFlag(r, c) {
       const cell = board[r][c];
       if (cell.revealed) return;
 
@@ -372,6 +387,18 @@
         if (!gameActive || gameOver) return;
         resetBtn.textContent = '😊';
       });
+
+      // панель режима "Открыть / Флаг"
+      modeOpenBtn.addEventListener('click', () => setMode('reveal'));
+      modeFlagBtn.addEventListener('click', () => setMode('flag'));
+      setMode('reveal');
+    }
+
+    // Переключение режима тапа (для мобильной панели)
+    function setMode(newMode) {
+      mode = newMode;
+      modeOpenBtn.classList.toggle('active', mode === 'reveal');
+      modeFlagBtn.classList.toggle('active', mode === 'flag');
     }
 
     init();
