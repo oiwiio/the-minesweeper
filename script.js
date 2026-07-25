@@ -1,8 +1,8 @@
 (function() {
-    // НАСТРОЙКИ (стандартный beginner 9x9, 10 мин) 
-    const ROWS = 9;
-    const COLS = 9;
-    const TOTAL_MINES = 10;
+    // НАСТРОЙКИ (меняются через панель сложности)
+    let ROWS = 9;
+    let COLS = 9;
+    let TOTAL_MINES = 10;
 
     // Состояние игры
     let board = [];              // 2D: { mine, number, revealed, flagged }
@@ -23,6 +23,8 @@
     const resetBtn = document.getElementById('resetButton');
     const modeOpenBtn = document.getElementById('modeOpen');
     const modeFlagBtn = document.getElementById('modeFlag');
+    const diffButtons = Array.from(document.querySelectorAll('.diff-btn'));
+    const gameContainerEl = document.querySelector('.game-container');
 
     // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ 
     function formatNumber(n) {
@@ -61,7 +63,9 @@
       }, 1000);
     }
 
-    // СОЗДАНИЕ ИГРОВОГО ПОЛЯ (без мин) 
+    // СОЗДАНИЕ ИГРОВОГО ПОЛЯ (без мин)
+    // exists: false зарезервировано на будущее — для нестандартной (не прямоугольной) формы поля,
+    // где часть клеток внутри прямоугольника ROWS x COLS просто отсутствует.
     function createEmptyBoard() {
       const newBoard = [];
       for (let r = 0; r < ROWS; r++) {
@@ -71,12 +75,24 @@
             mine: false,
             number: 0,
             revealed: false,
-            flagged: false
+            flagged: false,
+            exists: true
           });
         }
         newBoard.push(row);
       }
       return newBoard;
+    }
+
+    // Сколько реальных (не "дырок") клеток на поле — используется для проверки победы
+    function countExistingCells() {
+      let total = 0;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (board[r][c].exists) total++;
+        }
+      }
+      return total;
     }
 
     // РАССТАВЛЯЕМ МИНЫ (кроме клетки firstR, firstC)
@@ -85,6 +101,7 @@
       while (placed < TOTAL_MINES) {
         const r = Math.floor(Math.random() * ROWS);
         const c = Math.floor(Math.random() * COLS);
+        if (!board[r][c].exists) continue;
         // не ставим мину в первую клетку и её соседей (чтобы первый клик был безопасным)
         if (board[r][c].mine) continue;
         if (Math.abs(r - firstR) <= 1 && Math.abs(c - firstC) <= 1) continue;
@@ -95,13 +112,13 @@
       // Подсчёт чисел (количество мин вокруг)
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
-          if (board[r][c].mine) continue;
+          if (!board[r][c].exists || board[r][c].mine) continue;
           let count = 0;
           for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
               if (dr === 0 && dc === 0) continue;
               const nr = r + dr, nc = c + dc;
-              if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc].mine) count++;
+              if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc].exists && board[nr][nc].mine) count++;
             }
           }
           board[r][c].number = count;
@@ -119,6 +136,12 @@
           div.className = 'cell';
           div.dataset.r = r;
           div.dataset.c = c;
+
+          if (!cell.exists) {
+            div.classList.add('empty-void');
+            boardEl.appendChild(div);
+            continue;
+          }
 
           if (!cell.revealed) {
             div.classList.add('covered');
@@ -151,6 +174,13 @@
       const child = boardEl.children[index];
       if (!child) return;
       const cell = board[r][c];
+
+      if (!cell.exists) {
+        child.className = 'cell empty-void';
+        child.dataset.number = '';
+        child.textContent = '';
+        return;
+      }
 
       // сброс классов и содержимого
       child.className = 'cell';
@@ -186,7 +216,7 @@
             const nr = row + dr, nc = col + dc;
             if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
             const neighbor = board[nr][nc];
-            if (neighbor.revealed || neighbor.flagged || neighbor.mine) continue;
+            if (!neighbor.exists || neighbor.revealed || neighbor.flagged || neighbor.mine) continue;
             // открываем
             neighbor.revealed = true;
             revealedCount++;
@@ -207,13 +237,15 @@
       const c = parseInt(div.dataset.c);
       if (!gameActive || gameOver) return;
 
+      const cell = board[r][c];
+      if (!cell.exists) return;
+
       // Режим "флаг" (для телефонов): обычный тап ставит/снимает флаг
       if (mode === 'flag') {
         toggleFlag(r, c);
         return;
       }
 
-      const cell = board[r][c];
       if (cell.flagged || cell.revealed) return;
 
       // Первый клик: генерируем мины и запускаем таймер
@@ -240,6 +272,9 @@
           boardEl.children[idx].classList.add('mine-exploded');
         }
         resetBtn.textContent = '😵';
+        gameContainerEl.classList.add('lose');
+        boardEl.classList.add('lose');
+        document.body.classList.add('lose');
         return;
       }
 
@@ -253,8 +288,8 @@
         revealEmptyCells(r, c);
       }
 
-      // Проверка на победу
-      if (revealedCount === ROWS * COLS - TOTAL_MINES) {
+      // Проверка на победу (считаем по реальным клеткам, не по ROWS*COLS — на случай "дырявых" полей)
+      if (revealedCount === countExistingCells() - TOTAL_MINES) {
         gameActive = false;
         gameOver = true;
         stopTimer();
@@ -263,7 +298,7 @@
         for (let rr = 0; rr < ROWS; rr++) {
           for (let cc = 0; cc < COLS; cc++) {
             const ccell = board[rr][cc];
-            if (ccell.mine && !ccell.flagged) {
+            if (ccell.exists && ccell.mine && !ccell.flagged) {
               ccell.flagged = true;
               flagCount++;
               updateCellElement(rr, cc);
@@ -287,7 +322,7 @@
     // Поставить/снять флаг на клетке (используется и ПКМ, и тапом в режиме "флаг")
     function toggleFlag(r, c) {
       const cell = board[r][c];
-      if (cell.revealed) return;
+      if (!cell.exists || cell.revealed) return;
 
       if (!cell.flagged) {
         cell.flagged = true;
@@ -305,6 +340,7 @@
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const cell = board[r][c];
+          if (!cell.exists) continue;
           if (cell.mine && !cell.revealed && !cell.flagged) {
             cell.revealed = true;
             updateCellElement(r, c);
@@ -323,6 +359,7 @@
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const cell = board[r][c];
+          if (!cell.exists) continue;
           if (cell.flagged && !cell.mine) {
             const idx = r * COLS + c;
             if (boardEl.children[idx]) {
@@ -331,6 +368,34 @@
           }
         }
       }
+    }
+
+    // РАЗМЕР КЛЕТКИ ПОД ЭКРАН (чтобы 24x24 не вылезало за пределы телефона)
+    function computeCellSizePx() {
+      const gapPx = 3;
+      const boardPaddingPx = 16; // 8px с каждой стороны
+      const margin = 40; // отступ от края экрана
+      const availableWidth = Math.min(window.innerWidth - margin, 640);
+      const totalGaps = (COLS - 1) * gapPx;
+      let size = (availableWidth - boardPaddingPx - totalGaps) / COLS;
+      size = Math.max(13, Math.min(size, 37));
+      return size;
+    }
+
+    function applyBoardSizing() {
+      const size = computeCellSizePx();
+      boardEl.style.setProperty('--cols', COLS);
+      boardEl.style.setProperty('--rows', ROWS);
+      boardEl.style.setProperty('--cell-size', size + 'px');
+    }
+
+    // ПЕРЕКЛЮЧЕНИЕ СЛОЖНОСТИ (размер поля + число мин)
+    function setDifficulty(rows, cols, mines, btn) {
+      ROWS = rows;
+      COLS = cols;
+      TOTAL_MINES = mines;
+      diffButtons.forEach((b) => b.classList.toggle('active', b === btn));
+      resetGame();
     }
 
     // СБРОС ИГРЫ (новая игра) 
@@ -345,9 +410,13 @@
       flagCount = 0;
       revealedCount = 0;
       resetBtn.textContent = '😊';
+      gameContainerEl.classList.remove('lose');
+      document.body.classList.remove('lose');
+      boardEl.classList.remove('lose');
 
       board = createEmptyBoard();
       // не расставляем мины до первого клика
+      applyBoardSizing();
       renderBoard();
       updateMineCounter();
     }
@@ -364,6 +433,7 @@
       seconds = 0;
       timerStarted = false;
       updateTimer();
+      applyBoardSizing();
       renderBoard();
       updateMineCounter();
       resetBtn.textContent = '😊';
@@ -392,6 +462,23 @@
       modeOpenBtn.addEventListener('click', () => setMode('reveal'));
       modeFlagBtn.addEventListener('click', () => setMode('flag'));
       setMode('reveal');
+
+      // панель сложности (размер поля)
+      diffButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const rows = parseInt(btn.dataset.rows);
+          const cols = parseInt(btn.dataset.cols);
+          const mines = parseInt(btn.dataset.mines);
+          setDifficulty(rows, cols, mines, btn);
+        });
+      });
+
+      // пересчитываем размер клетки при повороте экрана / изменении размера окна
+      let resizeTimeout = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(applyBoardSizing, 120);
+      });
     }
 
     // Переключение режима тапа (для мобильной панели)
