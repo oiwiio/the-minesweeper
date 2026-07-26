@@ -30,6 +30,22 @@ body.lose::before {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 0.8; }
 }
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, transparent 30%, rgba(53, 255, 158, 0.5) 100%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+body.win::after {
+  animation: pageWinPulse 1.6s ease-in-out infinite;
+}
+@keyframes pageWinPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
 .game-container {
   position: relative;
   background: #0d0d16;
@@ -74,6 +90,29 @@ body.lose::before {
       0 0 0 1px rgba(255, 47, 110, 0.75),
       0 0 55px rgba(255, 47, 110, 0.65),
       0 0 120px rgba(255, 47, 110, 0.4),
+      0 20px 40px rgba(0, 0, 0, 0.7);
+  }
+}
+.game-container.win {
+  animation: winGlowPulse 1.6s ease-in-out infinite;
+}
+@keyframes winGlowPulse {
+  0%, 100% {
+    border-color: rgba(53, 255, 158, 0.55);
+    background: #0a1510;
+    box-shadow:
+      0 0 0 1px rgba(53, 255, 158, 0.4),
+      0 0 30px rgba(53, 255, 158, 0.4),
+      0 0 75px rgba(255, 217, 102, 0.2),
+      0 20px 40px rgba(0, 0, 0, 0.7);
+  }
+  50% {
+    border-color: rgba(255, 217, 102, 0.85);
+    background: #0a1a13;
+    box-shadow:
+      0 0 0 1px rgba(53, 255, 158, 0.75),
+      0 0 55px rgba(53, 255, 158, 0.6),
+      0 0 120px rgba(255, 217, 102, 0.35),
       0 20px 40px rgba(0, 0, 0, 0.7);
   }
 }
@@ -152,6 +191,19 @@ body.lose::before {
     box-shadow: inset 0 0 32px rgba(255, 47, 110, 0.45), 0 0 55px rgba(255, 47, 110, 0.55);
   }
 }
+.board.win {
+  animation: boardWinGlow 1.6s ease-in-out infinite;
+}
+@keyframes boardWinGlow {
+  0%, 100% {
+    border-color: rgba(53, 255, 158, 0.35);
+    box-shadow: inset 0 0 18px rgba(53, 255, 158, 0.25), 0 0 25px rgba(53, 255, 158, 0.3);
+  }
+  50% {
+    border-color: rgba(255, 217, 102, 0.8);
+    box-shadow: inset 0 0 32px rgba(53, 255, 158, 0.4), 0 0 55px rgba(255, 217, 102, 0.45);
+  }
+}
 .cell {
   background: #12121e;
   border-radius: 4px;
@@ -169,6 +221,25 @@ body.lose::before {
   cursor: default;
   border: none;
   background: transparent;
+}
+.cell.reveal-pop {
+  animation: revealPop 0.3s ease-out;
+}
+@keyframes revealPop {
+  0% {
+    transform: scale(0.45);
+    opacity: 0.3;
+    box-shadow: 0 0 0 rgba(0, 255, 208, 0);
+  }
+  55% {
+    transform: scale(1.1);
+    box-shadow: 0 0 14px rgba(0, 255, 208, 0.55);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 rgba(0, 255, 208, 0);
+  }
 }
 .cell.covered {
   background: #171725;
@@ -391,5 +462,65 @@ body.lose::before {
   50% {
     border-color: rgba(255, 47, 110, 0.95);
     box-shadow: 0 0 26px rgba(255, 47, 110, 0.7), 0 6px 16px rgba(0, 0, 0, 0.6);
+  }
+}
+.floating-reset.win {
+  animation: floatingResetWinGlow 1.6s ease-in-out infinite;
+}
+@keyframes floatingResetWinGlow {
+  0%, 100% {
+    border-color: rgba(53, 255, 158, 0.5);
+    box-shadow: 0 0 14px rgba(53, 255, 158, 0.45), 0 6px 16px rgba(0, 0, 0, 0.6);
+  }
+  50% {
+    border-color: rgba(255, 217, 102, 0.9);
+    box-shadow: 0 0 26px rgba(255, 217, 102, 0.6), 0 6px 16px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Конфетти при победе */
+.confetti-piece {
+  position: fixed;
+  top: -12px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 60;
+  animation-name: confettiFall;
+  animation-timing-function: cubic-bezier(0.35, 0, 0.65, 1);
+  animation-fill-mode: forwards;
+}
+@keyframes confettiFall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(105vh) rotate(560deg);
+    opacity: 0;
+  }
+}
+
+/* Ударная волна от взрыва мины */
+.shockwave-ring {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  margin-top: -10px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 47, 110, 0.85);
+  box-shadow: 0 0 20px rgba(255, 47, 110, 0.6);
+  pointer-events: none;
+  z-index: 55;
+  animation: shockwaveExpand 0.85s ease-out forwards;
+}
+@keyframes shockwaveExpand {
+  0% {
+    transform: scale(0);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(var(--scale-end, 20));
+    opacity: 0;
   }
 }

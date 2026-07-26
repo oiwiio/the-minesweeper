@@ -207,27 +207,111 @@
 
     // ЛОГИКА ИГРЫ 
 
-    // Рекурсивное открытие пустых клеток (DFS)
-    function revealEmptyCells(r, c) {
-      const stack = [[r, c]];
-      while (stack.length) {
-        const [row, col] = stack.pop();
-        for (let dr = -1; dr <= 1; dr++) {
-          for (let dc = -1; dc <= 1; dc++) {
-            const nr = row + dr, nc = col + dc;
-            if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
-            const neighbor = board[nr][nc];
-            if (!neighbor.exists || neighbor.revealed || neighbor.flagged || neighbor.mine) continue;
-            // открываем
-            neighbor.revealed = true;
-            revealedCount++;
-            updateCellElement(nr, nc);
-            if (neighbor.number === 0) {
-              stack.push([nr, nc]);
+    // Показать клетку с коротким "вспышка-поп" эффектом (используется волной открытия)
+    function revealWithFlash(r, c) {
+      updateCellElement(r, c);
+      const idx = r * COLS + c;
+      const el = boardEl.children[idx];
+      if (el) {
+        el.classList.add('reveal-pop');
+        el.addEventListener('animationend', () => el.classList.remove('reveal-pop'), { once: true });
+      }
+    }
+
+    // Открытие пустых клеток волной (BFS по слоям от точки клика).
+    // Игровое состояние (revealed/revealedCount) обновляется сразу — для корректности логики,
+    // а визуальное появление клеток растягивается по слоям для эффекта "расходящейся ряби".
+    // Возвращает общую длительность анимации в мс.
+    function revealEmptyCells(originR, originC) {
+      let frontier = [[originR, originC]];
+      const visited = new Set([`${originR},${originC}`]);
+      const layers = [];
+
+      while (frontier.length) {
+        const nextFrontier = [];
+        for (const [row, col] of frontier) {
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (dr === 0 && dc === 0) continue;
+              const nr = row + dr, nc = col + dc;
+              if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+              const key = `${nr},${nc}`;
+              if (visited.has(key)) continue;
+              const neighbor = board[nr][nc];
+              if (!neighbor.exists || neighbor.revealed || neighbor.flagged || neighbor.mine) continue;
+              visited.add(key);
+              neighbor.revealed = true;
+              revealedCount++;
+              nextFrontier.push([nr, nc]);
             }
           }
         }
+        if (nextFrontier.length) layers.push(nextFrontier);
+        // цепочка продолжается только через клетки, у которых самих число соседей == 0
+        frontier = nextFrontier.filter(([nr, nc]) => board[nr][nc].number === 0);
       }
+
+      const delayStep = 30; // мс между волнами
+      layers.forEach((layer, i) => {
+        setTimeout(() => {
+          layer.forEach(([nr, nc]) => revealWithFlash(nr, nc));
+        }, i * delayStep);
+      });
+
+      return layers.length * delayStep;
+    }
+
+    // ТАКТИЛЬНАЯ ОТДАЧА (только на устройствах, которые это умеют)
+    function vibrate(pattern) {
+      if (navigator.vibrate) {
+        navigator.vibrate(pattern);
+      }
+    }
+
+    // КОНФЕТТИ ПРИ ПОБЕДЕ
+    function spawnConfetti() {
+      const colors = ['#00ffd0', '#ff2f6e', '#35ff9e', '#ffd966', '#b174ff', '#40e0ff'];
+      const count = 32;
+      for (let i = 0; i < count; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        const left = Math.random() * 100;
+        const duration = 1.6 + Math.random() * 1.3;
+        const delay = Math.random() * 0.35;
+        const size = 6 + Math.random() * 7;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.left = left + 'vw';
+        piece.style.width = size + 'px';
+        piece.style.height = size + 'px';
+        piece.style.background = color;
+        piece.style.boxShadow = `0 0 8px ${color}`;
+        piece.style.animationDuration = duration + 's';
+        piece.style.animationDelay = delay + 's';
+        document.body.appendChild(piece);
+        piece.addEventListener('animationend', () => piece.remove());
+      }
+    }
+
+    // УДАРНАЯ ВОЛНА ОТ ВЗРЫВА
+    function spawnShockwave(centerX, centerY) {
+      const maxDim = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2);
+      const scaleEnd = maxDim / 20; // базовый диаметр кольца — 20px
+      const ringCount = 3;
+      for (let i = 0; i < ringCount; i++) {
+        const ring = document.createElement('div');
+        ring.className = 'shockwave-ring';
+        ring.style.left = centerX + 'px';
+        ring.style.top = centerY + 'px';
+        ring.style.animationDelay = (i * 0.13) + 's';
+        ring.style.setProperty('--scale-end', scaleEnd);
+        document.body.appendChild(ring);
+        ring.addEventListener('animationend', () => ring.remove());
+      }
+    }
+
+    // Очистка "летающих" эффектов (на случай быстрого рестарта во время анимации)
+    function clearFxLayers() {
+      document.querySelectorAll('.confetti-piece, .shockwave-ring').forEach((el) => el.remove());
     }
 
     // Обработка клика по клетке (открыть, либо флаг — если активен режим "флаг")
@@ -264,30 +348,36 @@
         gameActive = false;
         gameOver = true;
         stopTimer();
+        cell.revealed = true; // взорванную клетку помечаем сразу, чтобы каскад её не перерисовал поверх
         // открываем все мины (кроме уже верно отфлаженных) и отмечаем неверные флаги
         revealAllMines();
         markWrongFlags();
         // помечаем взорванную
         const idx = r * COLS + c;
-        if (boardEl.children[idx]) {
-          boardEl.children[idx].classList.add('mine-exploded');
+        const explodedEl = boardEl.children[idx];
+        if (explodedEl) {
+          explodedEl.classList.add('mine-exploded');
+          const rect = explodedEl.getBoundingClientRect();
+          spawnShockwave(rect.left + rect.width / 2, rect.top + rect.height / 2);
         }
         resetBtn.textContent = '😵';
         gameContainerEl.classList.add('lose');
         boardEl.classList.add('lose');
         document.body.classList.add('lose');
         floatingResetBtn.classList.add('lose');
+        vibrate([40, 60, 90]);
         return;
       }
 
       // Открываем клетку
       cell.revealed = true;
       revealedCount++;
-      updateCellElement(r, c);
+      revealWithFlash(r, c);
 
-      // Если число 0 — открываем соседей
+      // Если число 0 — открываем соседей волной
+      let waveDuration = 0;
       if (cell.number === 0) {
-        revealEmptyCells(r, c);
+        waveDuration = revealEmptyCells(r, c);
       }
 
       // Проверка на победу (считаем по реальным клеткам, не по ROWS*COLS — на случай "дырявых" полей)
@@ -295,7 +385,6 @@
         gameActive = false;
         gameOver = true;
         stopTimer();
-        resetBtn.textContent = '😎';
         // автоматически ставим флаги на мины (для красоты)
         for (let rr = 0; rr < ROWS; rr++) {
           for (let cc = 0; cc < COLS; cc++) {
@@ -308,6 +397,16 @@
           }
         }
         updateMineCounter();
+        // ждём, пока доиграет волна открытия, и только потом запускаем салют победы
+        setTimeout(() => {
+          resetBtn.textContent = '😎';
+          gameContainerEl.classList.add('win');
+          boardEl.classList.add('win');
+          document.body.classList.add('win');
+          floatingResetBtn.classList.add('win');
+          spawnConfetti();
+          vibrate([30, 40, 30, 40, 70]);
+        }, waveDuration);
       }
     }
 
@@ -335,17 +434,20 @@
       }
       updateMineCounter();
       updateCellElement(r, c);
+      vibrate(15);
     }
 
     // Открыть все мины (при проигрыше). Верно отфлаженные мины не трогаем — пусть остаётся флаг.
+    // Раскрываются каскадом (лёгкая задержка друг за другом), а не все разом.
     function revealAllMines() {
+      const minesToReveal = [];
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const cell = board[r][c];
           if (!cell.exists) continue;
           if (cell.mine && !cell.revealed && !cell.flagged) {
             cell.revealed = true;
-            updateCellElement(r, c);
+            minesToReveal.push([r, c]);
           } else if (cell.mine && cell.flagged) {
             const idx = r * COLS + c;
             if (boardEl.children[idx]) {
@@ -354,6 +456,10 @@
           }
         }
       }
+      const delayStep = 18;
+      minesToReveal.forEach(([r, c], i) => {
+        setTimeout(() => updateCellElement(r, c), i * delayStep);
+      });
     }
 
     // Помечаем флаги, поставленные не на мину (чтобы было видно ошибку при проигрыше)
@@ -417,10 +523,11 @@
       flagCount = 0;
       revealedCount = 0;
       resetBtn.textContent = '😊';
-      gameContainerEl.classList.remove('lose');
-      document.body.classList.remove('lose');
-      boardEl.classList.remove('lose');
-      floatingResetBtn.classList.remove('lose');
+      gameContainerEl.classList.remove('lose', 'win');
+      document.body.classList.remove('lose', 'win');
+      boardEl.classList.remove('lose', 'win');
+      floatingResetBtn.classList.remove('lose', 'win');
+      clearFxLayers();
 
       board = createEmptyBoard();
       // не расставляем мины до первого клика
