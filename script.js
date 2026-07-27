@@ -27,6 +27,33 @@
     const gameContainerEl = document.querySelector('.game-container');
     const floatingResetBtn = document.getElementById('floatingReset');
 
+    // Панель настройки темы
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const themePanelEl = document.getElementById('themePanel');
+    const themeCloseBtn = document.getElementById('themeClose');
+    const themeBackdropEl = document.getElementById('themeBackdrop');
+    const themeResetBtn = document.getElementById('themeReset');
+    const swatchBg = document.getElementById('swatchBg');
+    const swatchA1 = document.getElementById('swatchA1');
+    const swatchA2 = document.getElementById('swatchA2');
+    const themeInputs = {
+      bgH: document.getElementById('bgHue'),
+      bgS: document.getElementById('bgSat'),
+      bgL: document.getElementById('bgLight'),
+      a1H: document.getElementById('a1Hue'),
+      a1S: document.getElementById('a1Sat'),
+      a1L: document.getElementById('a1Light'),
+      a2H: document.getElementById('a2Hue'),
+      a2S: document.getElementById('a2Sat'),
+      a2L: document.getElementById('a2Light')
+    };
+    const DEFAULT_THEME = {
+      bgH: 240, bgS: 33, bgL: 3,
+      a1H: 169, a1S: 100, a1L: 50,
+      a2H: 342, a2S: 100, a2L: 59
+    };
+    const THEME_STORAGE_KEY = 'minesweeper-neon-theme';
+
     // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ 
     function formatNumber(n) {
       const negative = n < 0;
@@ -536,6 +563,94 @@
       updateMineCounter();
     }
 
+    // ТЕМА (фон + 2 акцента, настраивается пользователем) 
+    function applyTheme(theme) {
+      const root = document.documentElement.style;
+      root.setProperty('--bg-h', theme.bgH);
+      root.setProperty('--bg-s', theme.bgS + '%');
+      root.setProperty('--bg-l', theme.bgL + '%');
+      root.setProperty('--a1-h', theme.a1H);
+      root.setProperty('--a1-s', theme.a1S + '%');
+      root.setProperty('--a1-l', theme.a1L + '%');
+      root.setProperty('--a2-h', theme.a2H);
+      root.setProperty('--a2-s', theme.a2S + '%');
+      root.setProperty('--a2-l', theme.a2L + '%');
+
+      swatchBg.style.background = `hsl(${theme.bgH} ${theme.bgS}% ${theme.bgL}%)`;
+      swatchA1.style.background = `hsl(${theme.a1H} ${theme.a1S}% ${theme.a1L}%)`;
+      swatchA2.style.background = `hsl(${theme.a2H} ${theme.a2S}% ${theme.a2L}%)`;
+    }
+
+    function setThemeInputs(theme) {
+      Object.keys(themeInputs).forEach((key) => {
+        themeInputs[key].value = theme[key];
+      });
+    }
+
+    function readThemeFromInputs() {
+      const theme = {};
+      Object.keys(themeInputs).forEach((key) => {
+        theme[key] = Number(themeInputs[key].value);
+      });
+      return theme;
+    }
+
+    function saveTheme(theme) {
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(theme));
+      } catch (e) {
+        // localStorage недоступен (приватный режим и т.п.) — просто не сохраняем
+      }
+    }
+
+    function loadTheme() {
+      try {
+        const raw = localStorage.getItem(THEME_STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {
+        // игнорируем повреждённые данные
+      }
+      return null;
+    }
+
+    function setupThemePanel() {
+      const savedTheme = loadTheme();
+      const initialTheme = savedTheme
+        ? Object.assign({}, DEFAULT_THEME, savedTheme)
+        : DEFAULT_THEME;
+      setThemeInputs(initialTheme);
+      applyTheme(initialTheme);
+
+      Object.values(themeInputs).forEach((input) => {
+        input.addEventListener('input', () => {
+          const theme = readThemeFromInputs();
+          applyTheme(theme);
+          saveTheme(theme);
+        });
+      });
+
+      function openThemePanel() {
+        themePanelEl.classList.add('open');
+        themeBackdropEl.classList.add('open');
+        themePanelEl.setAttribute('aria-hidden', 'false');
+      }
+      function closeThemePanel() {
+        themePanelEl.classList.remove('open');
+        themeBackdropEl.classList.remove('open');
+        themePanelEl.setAttribute('aria-hidden', 'true');
+      }
+
+      themeToggleBtn.addEventListener('click', openThemePanel);
+      themeCloseBtn.addEventListener('click', closeThemePanel);
+      themeBackdropEl.addEventListener('click', closeThemePanel);
+
+      themeResetBtn.addEventListener('click', () => {
+        setThemeInputs(DEFAULT_THEME);
+        applyTheme(DEFAULT_THEME);
+        saveTheme(DEFAULT_THEME);
+      });
+    }
+
     // ИНИЦИАЛИЗАЦИЯ 
     function init() {
       // создаём пустую доску (без мин)
@@ -597,6 +712,9 @@
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(applyBoardSizing, 120);
       });
+
+      // панель настройки темы
+      setupThemePanel();
     }
 
     // Переключение режима тапа (для мобильной панели)

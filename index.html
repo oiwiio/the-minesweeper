@@ -32,6 +32,39 @@
   <div class="footer">💡 <span>режим</span> задаёт тап по клетке · на ПК <span>ПКМ</span> — всегда флаг</div>
 </div>
   <button class="floating-reset" id="floatingReset" type="button" aria-label="Начать заново">🔄</button>
+
+  <button class="theme-toggle" id="themeToggle" type="button" aria-label="Настройки темы">🎨</button>
+  <div class="theme-backdrop" id="themeBackdrop"></div>
+  <div class="theme-panel" id="themePanel" aria-hidden="true">
+    <div class="theme-panel-header">
+      <span>Настройка темы</span>
+      <button class="theme-close" id="themeClose" type="button" aria-label="Закрыть">✕</button>
+    </div>
+
+    <div class="theme-group">
+      <div class="theme-group-title"><span class="theme-swatch" id="swatchBg"></span>Фон</div>
+      <label><span>Оттенок</span><input type="range" id="bgHue" min="0" max="360" step="1"></label>
+      <label><span>Насыщенность</span><input type="range" id="bgSat" min="0" max="100" step="1"></label>
+      <label><span>Яркость</span><input type="range" id="bgLight" min="0" max="40" step="1"></label>
+    </div>
+
+    <div class="theme-group">
+      <div class="theme-group-title"><span class="theme-swatch" id="swatchA1"></span>Акцент 1 (числа, режим «Открыть»)</div>
+      <label><span>Оттенок</span><input type="range" id="a1Hue" min="0" max="360" step="1"></label>
+      <label><span>Насыщенность</span><input type="range" id="a1Sat" min="0" max="100" step="1"></label>
+      <label><span>Яркость</span><input type="range" id="a1Light" min="30" max="80" step="1"></label>
+    </div>
+
+    <div class="theme-group">
+      <div class="theme-group-title"><span class="theme-swatch" id="swatchA2"></span>Акцент 2 (флаг, режим «Флаг»)</div>
+      <label><span>Оттенок</span><input type="range" id="a2Hue" min="0" max="360" step="1"></label>
+      <label><span>Насыщенность</span><input type="range" id="a2Sat" min="0" max="100" step="1"></label>
+      <label><span>Яркость</span><input type="range" id="a2Light" min="30" max="80" step="1"></label>
+    </div>
+
+    <button class="theme-reset" id="themeReset" type="button">Сбросить на стандартную тему</button>
+  </div>
+
   <script src="./script.js"> </script>
 </body>
 </html>

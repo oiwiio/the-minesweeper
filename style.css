@@ -2,11 +2,42 @@
   box-sizing: border-box;
   user-select: none;
 }
+
+/* ТЕМА (настраиваемая пользователем через панель) 
+   Фон и оба акцента задаются 9 "сырыми" HSL-числами, а все производные
+   поверхности/рамки/полупрозрачные свечения считаются из них через calc()
+   и color-mix() — панели настроек достаточно менять только эти 9 переменных. */
+:root {
+  --bg-h: 240;
+  --bg-s: 33%;
+  --bg-l: 3%;
+  --a1-h: 169;
+  --a1-s: 100%;
+  --a1-l: 50%;
+  --a2-h: 342;
+  --a2-s: 100%;
+  --a2-l: 59%;
+
+  --bg-base: hsl(var(--bg-h) var(--bg-s) var(--bg-l));
+  --surface-1: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 4%));
+  --surface-2: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 3%));
+  --surface-3: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 7%));
+  --surface-4: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 9%));
+  --border-subtle: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 13%));
+  --border-cell: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 15%));
+  --border-covered: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 19%));
+  --border-hover: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 29%));
+  --text-muted: hsl(var(--bg-h) 15% 58%);
+
+  --accent-1: hsl(var(--a1-h) var(--a1-s) var(--a1-l));
+  --accent-2: hsl(var(--a2-h) var(--a2-s) var(--a2-l));
+}
+
 body {
-  background: #05050a;
+  background: var(--bg-base);
   background-image:
-    radial-gradient(circle at 20% 15%, rgba(0, 255, 200, 0.08), transparent 40%),
-    radial-gradient(circle at 80% 85%, rgba(255, 0, 170, 0.08), transparent 40%);
+    radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--accent-1) 8%, transparent), transparent 40%),
+    radial-gradient(circle at 80% 85%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 40%);
   min-height: 100vh;
   margin: 0;
   display: flex;
@@ -14,6 +45,9 @@ body {
   align-items: center;
   font-family: 'Consolas', 'Courier New', monospace;
 }
+
+/* СИСТЕМНЫЕ эффекты поражения/победы: цвета зафиксированы намеренно,
+   пользовательская тема на них не влияет — иначе потеряется читаемость сигнала. */
 body::before {
   content: "";
   position: fixed;
@@ -48,14 +82,14 @@ body.win::after {
 }
 .game-container {
   position: relative;
-  background: #0d0d16;
+  background: var(--surface-1);
   padding: 1.6rem 1.6rem 1.4rem;
   border-radius: 10px;
-  border: 1px solid #1f2333;
+  border: 1px solid var(--border-subtle);
   box-shadow:
-    0 0 0 1px rgba(0, 255, 220, 0.15),
-    0 0 25px rgba(0, 255, 220, 0.12),
-    0 0 60px rgba(255, 0, 170, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--accent-1) 15%, transparent),
+    0 0 25px color-mix(in srgb, var(--accent-1) 12%, transparent),
+    0 0 60px color-mix(in srgb, var(--accent-2) 8%, transparent),
     0 20px 40px rgba(0, 0, 0, 0.7);
   display: flex;
   flex-direction: column;
@@ -116,19 +150,21 @@ body.win::after {
       0 20px 40px rgba(0, 0, 0, 0.7);
   }
 }
+/* конец блока системных эффектов (продолжение ниже — снова обычная тема) */
+
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
   margin-bottom: 1.2rem;
-  background: #0a0a12;
+  background: var(--surface-2);
   padding: 0.5rem 1rem;
   border-radius: 6px;
-  border: 1px solid #1f2333;
+  border: 1px solid var(--border-subtle);
 }
 .mine-counter, .smiley {
-  background: #050508;
+  background: var(--bg-base);
   font-weight: 700;
   font-size: 1.9rem;
   letter-spacing: 3px;
@@ -137,15 +173,15 @@ body.win::after {
   font-variant-numeric: tabular-nums;
   min-width: 4rem;
   text-align: center;
-  border: 1px solid #1f2333;
+  border: 1px solid var(--border-subtle);
 }
 .mine-counter {
-  color: #ff2f6e;
-  text-shadow: 0 0 6px #ff2f6e, 0 0 16px rgba(255, 47, 110, 0.6);
+  color: var(--accent-2);
+  text-shadow: 0 0 6px var(--accent-2), 0 0 16px color-mix(in srgb, var(--accent-2) 60%, transparent);
 }
 .smiley {
-  color: #00ffd0;
-  text-shadow: 0 0 8px rgba(0, 255, 208, 0.8);
+  color: var(--accent-1);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent-1) 80%, transparent);
   font-size: 1.7rem;
   line-height: 1.2;
   padding: 0.1rem 0.6rem;
@@ -154,8 +190,8 @@ body.win::after {
   transition: 0.1s ease;
 }
 .smiley:hover {
-  border-color: #00ffd0;
-  box-shadow: 0 0 10px rgba(0, 255, 208, 0.35);
+  border-color: var(--accent-1);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-1) 35%, transparent);
 }
 .smiley:active {
   transform: scale(0.9);
@@ -165,10 +201,10 @@ body.win::after {
   grid-template-columns: repeat(var(--cols, 9), var(--cell-size, 2.3rem));
   grid-template-rows: repeat(var(--rows, 9), var(--cell-size, 2.3rem));
   gap: 3px;
-  background: #05050a;
+  background: var(--bg-base);
   padding: 8px;
   border-radius: 8px;
-  border: 1px solid #1f2333;
+  border: 1px solid var(--border-subtle);
   transition: border-color 0.4s ease, box-shadow 0.4s ease;
   max-width: calc(100vw - 2.5rem);
   max-height: 60vh;
@@ -205,14 +241,14 @@ body.win::after {
   }
 }
 .cell {
-  background: #12121e;
+  background: var(--surface-3);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: calc(var(--cell-size, 2.3rem) * 0.5);
-  border: 1px solid #23273a;
+  border: 1px solid var(--border-cell);
   transition: 0.08s linear;
   cursor: pointer;
 }
@@ -229,39 +265,42 @@ body.win::after {
   0% {
     transform: scale(0.45);
     opacity: 0.3;
-    box-shadow: 0 0 0 rgba(0, 255, 208, 0);
+    box-shadow: 0 0 0 transparent;
   }
   55% {
     transform: scale(1.1);
-    box-shadow: 0 0 14px rgba(0, 255, 208, 0.55);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--accent-1) 55%, transparent);
   }
   100% {
     transform: scale(1);
     opacity: 1;
-    box-shadow: 0 0 0 rgba(0, 255, 208, 0);
+    box-shadow: 0 0 0 transparent;
   }
 }
 .cell.covered {
-  background: #171725;
-  border-color: #2a2f45;
+  background: var(--surface-4);
+  border-color: var(--border-covered);
 }
 .cell.covered:hover {
-  border-color: #3d4568;
-  box-shadow: inset 0 0 8px rgba(0, 255, 220, 0.08);
+  border-color: var(--border-hover);
+  box-shadow: inset 0 0 8px color-mix(in srgb, var(--accent-1) 8%, transparent);
 }
 .cell.covered:active {
   transform: scale(0.92);
 }
 .cell.flagged {
-  background: #171725;
+  background: var(--surface-4);
 }
 .cell.flagged::before {
   content: "⚑";
   font-size: 1.2em;
   line-height: 1;
-  color: #ff2f6e;
-  text-shadow: 0 0 8px #ff2f6e, 0 0 18px rgba(255, 47, 110, 0.7);
+  color: var(--accent-2);
+  text-shadow: 0 0 8px var(--accent-2), 0 0 18px color-mix(in srgb, var(--accent-2) 70%, transparent);
 }
+/* ---- СИСТЕМНЫЕ индикаторы итога партии: намеренно фиксированные цвета
+   (неверный флаг всегда красный крест, верный — всегда зелёный флаг),
+   чтобы разбор после проигрыша был однозначно читаем при любой теме. ---- */
 .cell.flag-wrong::before {
   color: #ff2f6e;
   text-shadow: none;
@@ -279,14 +318,14 @@ body.win::after {
   pointer-events: none;
 }
 .cell.flag-correct {
-  background: #171725;
+  background: var(--surface-4);
 }
 .cell.flag-correct::before {
   content: "⚑";
   font-size: 1.2em;
   line-height: 1;
-  color: #00ffd0;
-  text-shadow: 0 0 8px #00ffd0, 0 0 18px rgba(0, 255, 208, 0.7);
+  color: #35ff9e;
+  text-shadow: 0 0 8px #35ff9e, 0 0 18px rgba(53, 255, 158, 0.7);
 }
 .cell.mine-exploded {
   background: #ff2f6e;
@@ -302,6 +341,10 @@ body.win::after {
   color: #ff2f6e;
   text-shadow: 0 0 10px #ff2f6e;
 }
+/* ---- конец системных индикаторов ---- */
+
+/* Цвета цифр 1-8 намеренно фиксированы (не часть темы) — им нужно оставаться
+   визуально различимыми друг от друга, это не завязано на акцентные цвета. */
 .cell[data-number="1"] { color: #35c9ff; text-shadow: 0 0 6px rgba(53, 201, 255, 0.7); }
 .cell[data-number="2"] { color: #35ff9e; text-shadow: 0 0 6px rgba(53, 255, 158, 0.7); }
 .cell[data-number="3"] { color: #ff5566; text-shadow: 0 0 6px rgba(255, 85, 102, 0.7); }
@@ -310,16 +353,17 @@ body.win::after {
 .cell[data-number="6"] { color: #40e0ff; text-shadow: 0 0 6px rgba(64, 224, 255, 0.7); }
 .cell[data-number="7"] { color: #ff4fd8; text-shadow: 0 0 6px rgba(255, 79, 216, 0.7); }
 .cell[data-number="8"] { color: #d8d8e8; text-shadow: 0 0 6px rgba(216, 216, 232, 0.5); }
+
 .difficulty-panel {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 0.9rem;
 }
 .diff-btn {
-  background: #12121e;
-  border: 1px solid #23273a;
+  background: var(--surface-3);
+  border: 1px solid var(--border-cell);
   border-radius: 6px;
-  color: #6b7290;
+  color: var(--text-muted);
   font-family: inherit;
   font-size: 0.8rem;
   letter-spacing: 0.5px;
@@ -332,9 +376,9 @@ body.win::after {
   transform: scale(0.94);
 }
 .diff-btn.active {
-  border-color: #00ffd0;
-  color: #00ffd0;
-  box-shadow: 0 0 8px rgba(0, 255, 208, 0.3), inset 0 0 8px rgba(0, 255, 208, 0.08);
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent-1) 30%, transparent), inset 0 0 8px color-mix(in srgb, var(--accent-1) 8%, transparent);
 }
 .play-area {
   display: flex;
@@ -354,10 +398,10 @@ body.win::after {
   gap: 0.15rem;
   width: 4rem;
   height: 4rem;
-  background: #12121e;
-  border: 1px solid #23273a;
+  background: var(--surface-3);
+  border: 1px solid var(--border-cell);
   border-radius: 8px;
-  color: #6b7290;
+  color: var(--text-muted);
   cursor: pointer;
   font-family: inherit;
   transition: 0.12s ease;
@@ -376,28 +420,28 @@ body.win::after {
   transform: scale(0.92);
 }
 .mode-btn.active[data-mode="reveal"] {
-  border-color: #00ffd0;
-  color: #00ffd0;
-  box-shadow: 0 0 10px rgba(0, 255, 208, 0.35), inset 0 0 10px rgba(0, 255, 208, 0.08);
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-1) 35%, transparent), inset 0 0 10px color-mix(in srgb, var(--accent-1) 8%, transparent);
 }
 .mode-btn.active[data-mode="flag"] {
-  border-color: #ff2f6e;
-  color: #ff2f6e;
-  box-shadow: 0 0 10px rgba(255, 47, 110, 0.35), inset 0 0 10px rgba(255, 47, 110, 0.08);
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-2) 35%, transparent), inset 0 0 10px color-mix(in srgb, var(--accent-2) 8%, transparent);
 }
 .footer {
   margin-top: 1rem;
-  color: #6b7290;
+  color: var(--text-muted);
   font-weight: 400;
   font-size: 0.8rem;
   letter-spacing: 0.5px;
-  background: #0a0a12;
+  background: var(--surface-2);
   padding: 0.3rem 1.4rem;
   border-radius: 20px;
-  border: 1px solid #1f2333;
+  border: 1px solid var(--border-subtle);
 }
 .footer span {
-  color: #00ffd0;
+  color: var(--accent-1);
 }
 
 @media (max-width: 480px) {
@@ -434,16 +478,16 @@ body.win::after {
   width: 3.4rem;
   height: 3.4rem;
   border-radius: 50%;
-  background: #12121e;
-  border: 1px solid #23273a;
-  color: #00ffd0;
+  background: var(--surface-3);
+  border: 1px solid var(--border-cell);
+  color: var(--accent-1);
   font-size: 1.4rem;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   font-family: inherit;
-  box-shadow: 0 0 10px rgba(0, 255, 208, 0.25), 0 6px 16px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-1) 25%, transparent), 0 6px 16px rgba(0, 0, 0, 0.6);
   transition: transform 0.1s ease, border-color 0.4s ease, box-shadow 0.4s ease;
   z-index: 50;
   -webkit-tap-highlight-color: transparent;
@@ -478,7 +522,7 @@ body.win::after {
   }
 }
 
-/* Конфетти при победе */
+/* Конфетти при победе — намеренно фиксированная праздничная палитра (системный эффект) */
 .confetti-piece {
   position: fixed;
   top: -12px;
@@ -500,7 +544,7 @@ body.win::after {
   }
 }
 
-/* Ударная волна от взрыва мины */
+/* Ударная волна от взрыва мины — системный эффект, фиксированный красный */
 .shockwave-ring {
   position: fixed;
   width: 20px;
@@ -523,4 +567,148 @@ body.win::after {
     transform: scale(var(--scale-end, 20));
     opacity: 0;
   }
+}
+
+/* ПАНЕЛЬ НАСТРОЙКИ ТЕМЫ */
+.theme-toggle {
+  position: fixed;
+  left: 1.1rem;
+  bottom: 1.1rem;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 50%;
+  background: var(--surface-3);
+  border: 1px solid var(--border-cell);
+  color: var(--accent-1);
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-1) 25%, transparent), 0 6px 16px rgba(0, 0, 0, 0.6);
+  transition: transform 0.1s ease;
+  z-index: 50;
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-toggle:active {
+  transform: scale(0.9);
+}
+.theme-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 65;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.theme-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.theme-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(320px, 88vw);
+  background: var(--surface-1);
+  border-left: 1px solid var(--border-subtle);
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
+  padding: 1.2rem;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font-family: inherit;
+}
+.theme-panel.open {
+  transform: translateX(0);
+}
+.theme-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.theme-close {
+  background: none;
+  border: 1px solid var(--border-cell);
+  color: var(--text-muted);
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  font-family: inherit;
+}
+.theme-close:hover {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
+.theme-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.8rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+.theme-group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.theme-swatch {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  border: 1px solid var(--border-cell);
+  display: inline-block;
+  flex-shrink: 0;
+}
+.theme-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+.theme-group label span {
+  width: 4.4rem;
+  flex-shrink: 0;
+}
+.theme-group input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent-1);
+  cursor: pointer;
+}
+.theme-reset {
+  background: var(--surface-2);
+  border: 1px solid var(--border-cell);
+  color: var(--text-muted);
+  padding: 0.55rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.4px;
+  transition: 0.12s ease;
+}
+.theme-reset:hover {
+  border-color: var(--accent-1);
+  color: var(--accent-1);
 }
