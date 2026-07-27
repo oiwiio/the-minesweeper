@@ -150,7 +150,7 @@ body.win::after {
       0 20px 40px rgba(0, 0, 0, 0.7);
   }
 }
-/* конец блока системных эффектов (продолжение ниже — снова обычная тема) */
+/* конец блока системных эффектов (продолжение ниже — снова обычная тема)*/
 
 .header {
   display: flex;
@@ -207,12 +207,7 @@ body.win::after {
   border: 1px solid var(--border-subtle);
   transition: border-color 0.4s ease, box-shadow 0.4s ease;
   max-width: calc(100vw - 2.5rem);
-  max-height: 60vh;
   min-width: 0;
-  min-height: 0;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }
 .board.lose {
   animation: boardLoseGlow 1.6s ease-in-out infinite;

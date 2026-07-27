@@ -506,20 +506,19 @@
     }
 
     // РАЗМЕР КЛЕТКИ ПОД ЭКРАН
-    // Если поле целиком помещается — подгоняем размер клетки под ширину экрана.
-    // Если не помещается даже на комфортном для тапа размере (большие поля на узких экранах) —
-    // не сжимаем клетки до нечитаемых пикселей, а оставляем комфортный размер и даём доске
-    // скроллиться внутри своей рамки (см. overflow в .board), чтобы не пришлось зумить всю страницу.
+    // Поле всегда должно быть видно целиком — без внутреннего скролла доски.
+    // Поэтому клетка честно сжимается под доступную ширину экрана, даже если
+    // на очень больших полях (24x24 и т.п.) она станет совсем мелкой.
     function computeCellSizePx() {
       const gapPx = 3;
       const boardPaddingPx = 16; // 8px с каждой стороны
       const margin = 40; // отступ от края экрана
-      const comfortableMin = 22; // ниже этого тапать пальцем неудобно
+      const minSize = 10; // ниже — уже совсем нечитаемо, но переполнения экрана быть не должно
       const maxSize = 37;
       const availableWidth = Math.min(window.innerWidth - margin, 640);
       const totalGaps = (COLS - 1) * gapPx;
       const fitSize = (availableWidth - boardPaddingPx - totalGaps) / COLS;
-      return Math.max(comfortableMin, Math.min(fitSize, maxSize));
+      return Math.max(minSize, Math.min(fitSize, maxSize));
     }
 
     function applyBoardSizing() {
@@ -563,7 +562,7 @@
       updateMineCounter();
     }
 
-    // ТЕМА (фон + 2 акцента, настраивается пользователем) 
+    // ===== ТЕМА (фон + 2 акцента, настраивается пользователем) =====
     function applyTheme(theme) {
       const root = document.documentElement.style;
       root.setProperty('--bg-h', theme.bgH);
