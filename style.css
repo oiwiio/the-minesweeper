@@ -725,3 +725,54 @@ body.win::after {
   border-color: var(--accent-1);
   color: var(--accent-1);
 }
+
+/* НОВЫЕ СТИЛИ ДЛЯ ПРЕСЕТОВ ТЕМ */
+.theme-presets .preset-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+.preset-btn {
+  background: var(--surface-3);
+  border: 1px solid var(--border-cell);
+  border-radius: 6px;
+  padding: 0.45rem 0.5rem;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: 0.12s ease;
+  text-align: center;
+  position: relative;
+  letter-spacing: 0.3px;
+  -webkit-tap-highlight-color: transparent;
+}
+.preset-btn::before {
+  content: '';
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--preset-color, #888);
+  margin-right: 0.4rem;
+  vertical-align: middle;
+  border: 1px solid var(--border-subtle);
+}
+.preset-btn:hover {
+  border-color: var(--border-hover);
+}
+.preset-btn:active {
+  transform: scale(0.94);
+}
+.preset-btn.active {
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-1) 30%, transparent), inset 0 0 8px color-mix(in srgb, var(--accent-1) 8%, transparent);
+}
+
+@media (max-width: 480px) {
+  .theme-presets .preset-buttons {
+    grid-template-columns: 1fr 1fr;
+  }
+}

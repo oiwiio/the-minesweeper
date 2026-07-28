@@ -52,7 +52,33 @@
       a1H: 169, a1S: 100, a1L: 50,
       a2H: 342, a2S: 100, a2L: 59
     };
+
+    // ===== ПРЕСЕТЫ ТЕМ =====
+    const PRESETS = {
+      neon: {
+        bgH: 240, bgS: 33, bgL: 3,
+        a1H: 169, a1S: 100, a1L: 50,
+        a2H: 342, a2S: 100, a2L: 59
+      },
+      light: {
+        bgH: 40, bgS: 20, bgL: 85,
+        a1H: 210, a1S: 80, a1L: 55,
+        a2H: 340, a2S: 70, a2L: 55
+      },
+      purple: {
+        bgH: 270, bgS: 40, bgL: 8,
+        a1H: 280, a1S: 90, a1L: 60,
+        a2H: 320, a2S: 80, a2L: 55
+      },
+      gray: {
+        bgH: 0, bgS: 0, bgL: 12,
+        a1H: 0, a1S: 0, a1L: 65,
+        a2H: 0, a2S: 0, a2L: 50
+      }
+    };
+
     const THEME_STORAGE_KEY = 'minesweeper-neon-theme';
+    const PRESET_STORAGE_KEY = 'minesweeper-active-preset';
 
     // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ 
     function formatNumber(n) {
@@ -92,8 +118,6 @@
     }
 
     // СОЗДАНИЕ ИГРОВОГО ПОЛЯ (без мин)
-    // exists: false зарезервировано на будущее — для нестандартной (не прямоугольной) формы поля,
-    // где часть клеток внутри прямоугольника ROWS x COLS просто отсутствует.
     function createEmptyBoard() {
       const newBoard = [];
       for (let r = 0; r < ROWS; r++) {
@@ -112,7 +136,6 @@
       return newBoard;
     }
 
-    // Сколько реальных (не "дырок") клеток на поле — используется для проверки победы
     function countExistingCells() {
       let total = 0;
       for (let r = 0; r < ROWS; r++) {
@@ -123,21 +146,18 @@
       return total;
     }
 
-    // РАССТАВЛЯЕМ МИНЫ (кроме клетки firstR, firstC)
     function placeMines(firstR, firstC) {
       let placed = 0;
       while (placed < TOTAL_MINES) {
         const r = Math.floor(Math.random() * ROWS);
         const c = Math.floor(Math.random() * COLS);
         if (!board[r][c].exists) continue;
-        // не ставим мину в первую клетку и её соседей (чтобы первый клик был безопасным)
         if (board[r][c].mine) continue;
         if (Math.abs(r - firstR) <= 1 && Math.abs(c - firstC) <= 1) continue;
         board[r][c].mine = true;
         placed++;
       }
 
-      // Подсчёт чисел (количество мин вокруг)
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           if (!board[r][c].exists || board[r][c].mine) continue;
@@ -154,7 +174,6 @@
       }
     }
 
-    // ОТРИСОВКА ДОСКИ 
     function renderBoard() {
       boardEl.innerHTML = '';
       for (let r = 0; r < ROWS; r++) {
@@ -177,18 +196,14 @@
               div.classList.add('flagged');
             }
           } else {
-            // открытая клетка
             if (cell.mine) {
               div.classList.add('mine-shown');
             } else if (cell.number > 0) {
               div.dataset.number = cell.number;
               div.textContent = cell.number;
-            } else {
-              // пустая
             }
           }
 
-          // обработчики событий
           div.addEventListener('click', onCellClick);
           div.addEventListener('contextmenu', onCellRightClick);
           boardEl.appendChild(div);
@@ -196,7 +211,6 @@
       }
     }
 
-    // Обновление отображения конкретной клетки (без перерисовки всей доски)
     function updateCellElement(r, c) {
       const index = r * COLS + c;
       const child = boardEl.children[index];
@@ -210,7 +224,6 @@
         return;
       }
 
-      // сброс классов и содержимого
       child.className = 'cell';
       child.dataset.number = '';
       child.textContent = '';
@@ -226,15 +239,10 @@
         } else if (cell.number > 0) {
           child.dataset.number = cell.number;
           child.textContent = cell.number;
-        } else {
-          // пустая
         }
       }
     }
 
-    // ЛОГИКА ИГРЫ 
-
-    // Показать клетку с коротким "вспышка-поп" эффектом (используется волной открытия)
     function revealWithFlash(r, c) {
       updateCellElement(r, c);
       const idx = r * COLS + c;
@@ -245,10 +253,6 @@
       }
     }
 
-    // Открытие пустых клеток волной (BFS по слоям от точки клика).
-    // Игровое состояние (revealed/revealedCount) обновляется сразу — для корректности логики,
-    // а визуальное появление клеток растягивается по слоям для эффекта "расходящейся ряби".
-    // Возвращает общую длительность анимации в мс.
     function revealEmptyCells(originR, originC) {
       let frontier = [[originR, originC]];
       const visited = new Set([`${originR},${originC}`]);
@@ -274,11 +278,10 @@
           }
         }
         if (nextFrontier.length) layers.push(nextFrontier);
-        // цепочка продолжается только через клетки, у которых самих число соседей == 0
         frontier = nextFrontier.filter(([nr, nc]) => board[nr][nc].number === 0);
       }
 
-      const delayStep = 30; // мс между волнами
+      const delayStep = 30;
       layers.forEach((layer, i) => {
         setTimeout(() => {
           layer.forEach(([nr, nc]) => revealWithFlash(nr, nc));
@@ -288,14 +291,12 @@
       return layers.length * delayStep;
     }
 
-    // ТАКТИЛЬНАЯ ОТДАЧА (только на устройствах, которые это умеют)
     function vibrate(pattern) {
       if (navigator.vibrate) {
         navigator.vibrate(pattern);
       }
     }
 
-    // КОНФЕТТИ ПРИ ПОБЕДЕ
     function spawnConfetti() {
       const colors = ['#00ffd0', '#ff2f6e', '#35ff9e', '#ffd966', '#b174ff', '#40e0ff'];
       const count = 32;
@@ -319,10 +320,9 @@
       }
     }
 
-    // УДАРНАЯ ВОЛНА ОТ ВЗРЫВА
     function spawnShockwave(centerX, centerY) {
       const maxDim = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2);
-      const scaleEnd = maxDim / 20; // базовый диаметр кольца — 20px
+      const scaleEnd = maxDim / 20;
       const ringCount = 3;
       for (let i = 0; i < ringCount; i++) {
         const ring = document.createElement('div');
@@ -336,12 +336,10 @@
       }
     }
 
-    // Очистка "летающих" эффектов (на случай быстрого рестарта во время анимации)
     function clearFxLayers() {
       document.querySelectorAll('.confetti-piece, .shockwave-ring').forEach((el) => el.remove());
     }
 
-    // Обработка клика по клетке (открыть, либо флаг — если активен режим "флаг")
     function onCellClick(e) {
       e.preventDefault();
       const div = e.currentTarget;
@@ -352,7 +350,6 @@
       const cell = board[r][c];
       if (!cell.exists) return;
 
-      // Режим "флаг" (для телефонов): обычный тап ставит/снимает флаг
       if (mode === 'flag') {
         toggleFlag(r, c);
         return;
@@ -360,26 +357,20 @@
 
       if (cell.flagged || cell.revealed) return;
 
-      // Первый клик: генерируем мины и запускаем таймер
       if (firstClick) {
         placeMines(r, c);
         firstClick = false;
         startTimer();
-        // обновим счётчик мин (без изменений, но для красоты)
         updateMineCounter();
       }
 
-      // Если попали на мину — конец игры
       if (cell.mine) {
-        // проигрыш
         gameActive = false;
         gameOver = true;
         stopTimer();
-        cell.revealed = true; // взорванную клетку помечаем сразу, чтобы каскад её не перерисовал поверх
-        // открываем все мины (кроме уже верно отфлаженных) и отмечаем неверные флаги
+        cell.revealed = true;
         revealAllMines();
         markWrongFlags();
-        // помечаем взорванную
         const idx = r * COLS + c;
         const explodedEl = boardEl.children[idx];
         if (explodedEl) {
@@ -396,23 +387,19 @@
         return;
       }
 
-      // Открываем клетку
       cell.revealed = true;
       revealedCount++;
       revealWithFlash(r, c);
 
-      // Если число 0 — открываем соседей волной
       let waveDuration = 0;
       if (cell.number === 0) {
         waveDuration = revealEmptyCells(r, c);
       }
 
-      // Проверка на победу (считаем по реальным клеткам, не по ROWS*COLS — на случай "дырявых" полей)
       if (revealedCount === countExistingCells() - TOTAL_MINES) {
         gameActive = false;
         gameOver = true;
         stopTimer();
-        // автоматически ставим флаги на мины (для красоты)
         for (let rr = 0; rr < ROWS; rr++) {
           for (let cc = 0; cc < COLS; cc++) {
             const ccell = board[rr][cc];
@@ -424,7 +411,6 @@
           }
         }
         updateMineCounter();
-        // ждём, пока доиграет волна открытия, и только потом запускаем салют победы
         setTimeout(() => {
           resetBtn.textContent = '😎';
           gameContainerEl.classList.add('win');
@@ -437,7 +423,6 @@
       }
     }
 
-    // Обработка правого клика (флаг) — общая логика вынесена в toggleFlag
     function onCellRightClick(e) {
       e.preventDefault();
       const div = e.currentTarget;
@@ -447,7 +432,6 @@
       toggleFlag(r, c);
     }
 
-    // Поставить/снять флаг на клетке (используется и ПКМ, и тапом в режиме "флаг")
     function toggleFlag(r, c) {
       const cell = board[r][c];
       if (!cell.exists || cell.revealed) return;
@@ -464,8 +448,6 @@
       vibrate(15);
     }
 
-    // Открыть все мины (при проигрыше). Верно отфлаженные мины не трогаем — пусть остаётся флаг.
-    // Раскрываются каскадом (лёгкая задержка друг за другом), а не все разом.
     function revealAllMines() {
       const minesToReveal = [];
       for (let r = 0; r < ROWS; r++) {
@@ -489,7 +471,6 @@
       });
     }
 
-    // Помечаем флаги, поставленные не на мину (чтобы было видно ошибку при проигрыше)
     function markWrongFlags() {
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
@@ -505,15 +486,11 @@
       }
     }
 
-    // РАЗМЕР КЛЕТКИ ПОД ЭКРАН
-    // Поле всегда должно быть видно целиком — без внутреннего скролла доски.
-    // Поэтому клетка честно сжимается под доступную ширину экрана, даже если
-    // на очень больших полях (24x24 и т.п.) она станет совсем мелкой.
     function computeCellSizePx() {
       const gapPx = 3;
-      const boardPaddingPx = 16; // 8px с каждой стороны
-      const margin = 40; // отступ от края экрана
-      const minSize = 10; // ниже — уже совсем нечитаемо, но переполнения экрана быть не должно
+      const boardPaddingPx = 16;
+      const margin = 40;
+      const minSize = 10;
       const maxSize = 37;
       const availableWidth = Math.min(window.innerWidth - margin, 640);
       const totalGaps = (COLS - 1) * gapPx;
@@ -528,7 +505,6 @@
       boardEl.style.setProperty('--cell-size', size + 'px');
     }
 
-    // ПЕРЕКЛЮЧЕНИЕ СЛОЖНОСТИ (размер поля + число мин)
     function setDifficulty(rows, cols, mines, btn) {
       ROWS = rows;
       COLS = cols;
@@ -537,7 +513,6 @@
       resetGame();
     }
 
-    // СБРОС ИГРЫ (новая игра) 
     function resetGame() {
       stopTimer();
       timerStarted = false;
@@ -556,7 +531,6 @@
       clearFxLayers();
 
       board = createEmptyBoard();
-      // не расставляем мины до первого клика
       applyBoardSizing();
       renderBoard();
       updateMineCounter();
@@ -597,34 +571,83 @@
     function saveTheme(theme) {
       try {
         localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(theme));
-      } catch (e) {
-        // localStorage недоступен (приватный режим и т.п.) — просто не сохраняем
-      }
+      } catch (e) {}
     }
 
     function loadTheme() {
       try {
         const raw = localStorage.getItem(THEME_STORAGE_KEY);
         if (raw) return JSON.parse(raw);
-      } catch (e) {
-        // игнорируем повреждённые данные
-      }
+      } catch (e) {}
       return null;
+    }
+
+    function saveActivePreset(presetName) {
+      try {
+        localStorage.setItem(PRESET_STORAGE_KEY, presetName);
+      } catch (e) {}
+    }
+
+    function loadActivePreset() {
+      try {
+        return localStorage.getItem(PRESET_STORAGE_KEY);
+      } catch (e) {}
+      return null;
+    }
+
+    function updatePresetButtons(activeName) {
+      document.querySelectorAll('.preset-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.preset === activeName);
+      });
     }
 
     function setupThemePanel() {
       const savedTheme = loadTheme();
-      const initialTheme = savedTheme
-        ? Object.assign({}, DEFAULT_THEME, savedTheme)
-        : DEFAULT_THEME;
+      const savedPreset = loadActivePreset();
+
+      let initialTheme;
+      let activePreset = null;
+
+      if (savedPreset && PRESETS[savedPreset]) {
+        activePreset = savedPreset;
+        initialTheme = PRESETS[savedPreset];
+        updatePresetButtons(activePreset);
+      } else if (savedTheme) {
+        initialTheme = Object.assign({}, DEFAULT_THEME, savedTheme);
+      } else {
+        initialTheme = DEFAULT_THEME;
+        activePreset = 'neon';
+        updatePresetButtons('neon');
+      }
+
       setThemeInputs(initialTheme);
       applyTheme(initialTheme);
 
+      // ===== ПРЕСЕТЫ: клик по кнопке готовой темы =====
+      document.querySelectorAll('.preset-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const presetName = btn.dataset.preset;
+          const theme = PRESETS[presetName];
+          if (!theme) return;
+
+          activePreset = presetName;
+          setThemeInputs(theme);
+          applyTheme(theme);
+          saveTheme(theme);
+          saveActivePreset(presetName);
+          updatePresetButtons(presetName);
+        });
+      });
+
       Object.values(themeInputs).forEach((input) => {
         input.addEventListener('input', () => {
+          // При ручной правке ползунков — сбрасываем активный пресет
+          activePreset = null;
+          updatePresetButtons(null);
           const theme = readThemeFromInputs();
           applyTheme(theme);
           saveTheme(theme);
+          saveActivePreset(null);
         });
       });
 
@@ -644,15 +667,16 @@
       themeBackdropEl.addEventListener('click', closeThemePanel);
 
       themeResetBtn.addEventListener('click', () => {
+        activePreset = 'neon';
+        updatePresetButtons('neon');
         setThemeInputs(DEFAULT_THEME);
         applyTheme(DEFAULT_THEME);
         saveTheme(DEFAULT_THEME);
+        saveActivePreset('neon');
       });
     }
 
-    // ИНИЦИАЛИЗАЦИЯ 
     function init() {
-      // создаём пустую доску (без мин)
       board = createEmptyBoard();
       gameActive = true;
       gameOver = false;
@@ -667,16 +691,10 @@
       updateMineCounter();
       resetBtn.textContent = '😊';
 
-      // кнопка сброса
       resetBtn.addEventListener('click', resetGame);
-
-      // плавающая кнопка перезапуска (удобно на телефоне, когда экран приближен)
       floatingResetBtn.addEventListener('click', resetGame);
-
-      // предотвращаем контекстное меню на доске
       boardEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
-      // смайлик "удивляется", пока зажата клетка (левой кнопкой)
       boardEl.addEventListener('mousedown', (e) => {
         if (e.button !== 0 || !gameActive || gameOver) return;
         resetBtn.textContent = '😮';
@@ -690,12 +708,10 @@
         resetBtn.textContent = '😊';
       });
 
-      // панель режима "Открыть / Флаг"
       modeOpenBtn.addEventListener('click', () => setMode('reveal'));
       modeFlagBtn.addEventListener('click', () => setMode('flag'));
       setMode('reveal');
 
-      // панель сложности (размер поля)
       diffButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
           const rows = parseInt(btn.dataset.rows);
@@ -705,18 +721,15 @@
         });
       });
 
-      // пересчитываем размер клетки при повороте экрана / изменении размера окна
       let resizeTimeout = null;
       window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(applyBoardSizing, 120);
       });
 
-      // панель настройки темы
       setupThemePanel();
     }
 
-    // Переключение режима тапа (для мобильной панели)
     function setMode(newMode) {
       mode = newMode;
       modeOpenBtn.classList.toggle('active', mode === 'reveal');
