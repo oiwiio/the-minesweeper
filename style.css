@@ -236,7 +236,7 @@ body.win::after {
   }
 }
 .cell {
-  background: var(--surface-3);
+  background-color: var(--surface-3);
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -271,6 +271,18 @@ body.win::after {
     opacity: 1;
     box-shadow: 0 0 0 transparent;
   }
+}
+/* Открытые (безопасные) клетки — лёгкая диагональная штриховка,
+   чтобы на маленьком экране открытая/закрытая клетка отличались
+   не только на 2% яркости фона, а по чёткой текстуре. */
+.cell:not(.covered):not(.empty-void):not(.mine-shown):not(.mine-exploded) {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--border-cell) 80%, transparent) 0,
+    color-mix(in srgb, var(--border-cell) 80%, transparent) 1px,
+    transparent 1px,
+    transparent 6px
+  );
 }
 .cell.covered {
   background: var(--surface-4);
@@ -690,6 +702,12 @@ body.win::after {
   flex: 1;
   accent-color: var(--accent-1);
   cursor: pointer;
+}
+/* У каждой группы свой акцент на ползунках — раньше все три группы
+   (фон, акцент 1, акцент 2) красили бегунок в var(--accent-1),
+   поэтому ползунки акцента 2 не отражали свой собственный цвет. */
+.theme-group:has(#swatchA2) input[type="range"] {
+  accent-color: var(--accent-2);
 }
 .theme-reset {
   background: var(--surface-2);
