@@ -18,15 +18,21 @@
   --a2-s: 100%;
   --a2-l: 59%;
 
+  /* --surface-dir: 1 для тёмного фона (поверхности светлее базового),
+     -1 для светлого фона (поверхности темнее базового). Считается в JS
+     (applyTheme) по значению bgL и подставляется сюда — без этого светлый
+     фон при +29% рамки просто упирается в чистый белый и всё сливается. */
+  --surface-dir: 1;
+
   --bg-base: hsl(var(--bg-h) var(--bg-s) var(--bg-l));
-  --surface-1: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 4%));
-  --surface-2: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 3%));
-  --surface-3: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 7%));
-  --surface-4: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 9%));
-  --border-subtle: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 13%));
-  --border-cell: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 15%));
-  --border-covered: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 19%));
-  --border-hover: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + 29%));
+  --surface-1: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + var(--surface-dir) * 4%));
+  --surface-2: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + var(--surface-dir) * 3%));
+  --surface-3: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + var(--surface-dir) * 7%));
+  --surface-4: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + var(--surface-dir) * 9%));
+  --border-subtle: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + var(--surface-dir) * 13%));
+  --border-cell: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + var(--surface-dir) * 15%));
+  --border-covered: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + var(--surface-dir) * 19%));
+  --border-hover: hsl(var(--bg-h) var(--bg-s) calc(var(--bg-l) + var(--surface-dir) * 29%));
   --text-muted: hsl(var(--bg-h) 15% 58%);
 
   --accent-1: hsl(var(--a1-h) var(--a1-s) var(--a1-l));

@@ -536,9 +536,13 @@
       updateMineCounter();
     }
 
-    // ===== ТЕМА (фон + 2 акцента, настраивается пользователем) =====
+    // ТЕМА (фон + 2 акцента, настраивается пользователем) 
     function applyTheme(theme) {
       const root = document.documentElement.style;
+      // Светлый фон (bgL > 50) — слои должны темнеть от фона, а не светлеть,
+      // иначе рамки/поверхности упираются в чистый белый и пропадают.
+      const surfaceDir = theme.bgL > 50 ? -1 : 1;
+      root.setProperty('--surface-dir', surfaceDir);
       root.setProperty('--bg-h', theme.bgH);
       root.setProperty('--bg-s', theme.bgS + '%');
       root.setProperty('--bg-l', theme.bgL + '%');
