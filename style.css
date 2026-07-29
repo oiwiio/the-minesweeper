@@ -442,6 +442,196 @@ body.win::after {
   color: var(--accent-2);
   box-shadow: 0 0 10px color-mix(in srgb, var(--accent-2) 35%, transparent), inset 0 0 10px color-mix(in srgb, var(--accent-2) 8%, transparent);
 }
+/* ПАНЕЛЬ СПОСОБНОСТЕЙ (под игровым полем) */
+.abilities-panel {
+  width: 100%;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.abilities-title {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.abilities-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.ability-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  background: var(--surface-3);
+  border: 1px solid var(--border-cell);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition: 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.ability-btn .ability-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.ability-btn .ability-charge {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
+  border-radius: 50%;
+  background: var(--accent-1);
+  color: var(--bg-base);
+  font-size: 0.62rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--surface-1);
+}
+.ability-btn:hover:not(:disabled) {
+  border-color: var(--accent-1);
+}
+.ability-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.ability-btn.armed {
+  border-color: var(--accent-1);
+  animation: abilityArmedPulse 1.1s ease-in-out infinite;
+}
+@keyframes abilityArmedPulse {
+  0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--accent-1) 35%, transparent); }
+  50% { box-shadow: 0 0 20px color-mix(in srgb, var(--accent-1) 65%, transparent); }
+}
+.ability-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ability-btn:disabled .ability-charge {
+  background: var(--border-cell);
+  color: var(--text-muted);
+}
+
+/* Плашка-подсказка с названием и описанием — только на устройствах
+   с настоящим hover, чтобы на тачскрине не мешала тапу по кнопке */
+.ability-tooltip {
+  position: absolute;
+  bottom: calc(100% + 0.7rem);
+  left: 50%;
+  width: max-content;
+  max-width: 210px;
+  transform: translate(-50%, 6px);
+  background: var(--surface-2);
+  border: 1px solid var(--border-cell);
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent-1) 20%, transparent), 0 12px 26px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: left;
+  cursor: default;
+}
+.ability-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--border-cell);
+}
+.ability-tooltip-title {
+  color: var(--accent-1);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.ability-tooltip-desc {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+@media (hover: hover) {
+  .ability-btn:hover .ability-tooltip,
+  .ability-btn:focus-visible .ability-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+  }
+}
+.ability-hint {
+  min-height: 1em;
+  font-size: 0.68rem;
+  color: var(--accent-1);
+  letter-spacing: 0.3px;
+}
+.board.targeting,
+.board.targeting .cell.covered {
+  cursor: crosshair;
+}
+
+/* Вспышка по всей области 3×3 сканирования — чисто индикативная, не завязана на тему */
+.cell.radar-area {
+  animation: radarSweep 0.6s ease-out;
+}
+@keyframes radarSweep {
+  0% { box-shadow: 0 0 0 2px var(--accent-1) inset; }
+  100% { box-shadow: 0 0 0 2px transparent inset; }
+}
+/* Метка обнаруженной мины — фиксированный "тревожный" цвет, как и остальные
+   системные индикаторы (не часть темы), чтобы всегда читалась однозначно */
+.cell.radar-mine {
+  position: relative;
+}
+.cell.radar-mine::after {
+  content: "";
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: #ff2f6e;
+  box-shadow: 0 0 10px #ff2f6e, 0 0 22px rgba(255, 47, 110, 0.7);
+  animation: radarBlip 0.9s ease-in-out infinite;
+}
+@keyframes radarBlip {
+  0%, 100% { opacity: 0.5; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* "Радарный" разворот при скане — фиксированный зелёный, системный
+   FX-эффект (как конфетти/ударная волна), не завязан на тему */
+.radar-sweep-fx {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 58;
+  border: 2px solid rgba(53, 255, 158, 0.4);
+  box-shadow: 0 0 18px rgba(53, 255, 158, 0.35), inset 0 0 16px rgba(53, 255, 158, 0.12);
+  background: conic-gradient(from 0deg, rgba(53, 255, 158, 0.7), rgba(53, 255, 158, 0.15) 22%, transparent 45%);
+  animation: radarSweepSpin 0.85s linear forwards;
+}
+@keyframes radarSweepSpin {
+  0% { transform: rotate(0deg); opacity: 1; }
+  100% { transform: rotate(360deg); opacity: 0; }
+}
+
 .footer {
   margin-top: 1rem;
   color: var(--text-muted);

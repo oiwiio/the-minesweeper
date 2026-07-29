@@ -29,6 +29,20 @@
       </button>
     </div>
   </div>
+  <div class="abilities-panel" id="abilitiesPanel">
+    <div class="abilities-title">Способности</div>
+    <div class="abilities-row">
+      <button class="ability-btn" id="abilityRadar" data-ability="radar" type="button">
+        <span class="ability-icon">📡</span>
+        <span class="ability-charge" id="radarCharge">1</span>
+        <span class="ability-tooltip">
+          <span class="ability-tooltip-title">Радар</span>
+          <span class="ability-tooltip-desc">Сканирует область 3×3 вокруг выбранной клетки и на несколько секунд показывает, где внутри неё мины. Клетки остаются закрытыми. 1 заряд за игру.</span>
+        </span>
+      </button>
+    </div>
+    <div class="ability-hint" id="abilityHint"></div>
+  </div>
   <div class="footer">💡 <span>режим</span> задаёт тап по клетке · на ПК <span>ПКМ</span> — всегда флаг</div>
 </div>
   <button class="floating-reset" id="floatingReset" type="button" aria-label="Начать заново">🔄</button>

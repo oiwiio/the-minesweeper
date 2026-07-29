@@ -16,6 +16,14 @@
     let timerStarted = false;
     let mode = 'reveal';         // 'reveal' или 'flag' — режим тапа (для мобильной панели)
 
+    // ===== СПОСОБНОСТИ =====
+    let abilityMode = null;      // null | 'radar' — какая способность сейчас "наведена" на клетку
+    let radarCharges = 1;        // радар: 1 использование за забег
+
+    const radarBtn = document.getElementById('abilityRadar');
+    const radarChargeEl = document.getElementById('radarCharge');
+    const abilityHintEl = document.getElementById('abilityHint');
+
     // DOM элементы
     const boardEl = document.getElementById('board');
     const mineCounterEl = document.getElementById('mineCounter');
@@ -350,6 +358,11 @@
       const cell = board[r][c];
       if (!cell.exists) return;
 
+      if (abilityMode === 'radar') {
+        useRadar(r, c);
+        return;
+      }
+
       if (mode === 'flag') {
         toggleFlag(r, c);
         return;
@@ -384,6 +397,8 @@
         document.body.classList.add('lose');
         floatingResetBtn.classList.add('lose');
         vibrate([40, 60, 90]);
+        setAbilityMode(null);
+        updateAbilityUI();
         return;
       }
 
@@ -411,6 +426,8 @@
           }
         }
         updateMineCounter();
+        setAbilityMode(null);
+        updateAbilityUI();
         setTimeout(() => {
           resetBtn.textContent = '😎';
           gameContainerEl.classList.add('win');
@@ -486,6 +503,85 @@
       }
     }
 
+    // ===== СПОСОБНОСТИ: РАДАР =====
+    // Сканирует область 3×3 вокруг выбранной клетки и на несколько секунд
+    // подсвечивает мины внутри неё — клетки остаются закрытыми, флаги сам не ставит.
+    function updateAbilityUI() {
+      radarChargeEl.textContent = radarCharges;
+      radarBtn.disabled = radarCharges <= 0 || gameOver;
+      radarBtn.classList.toggle('armed', abilityMode === 'radar');
+    }
+
+    function setAbilityMode(newMode) {
+      abilityMode = newMode;
+      boardEl.classList.toggle('targeting', !!abilityMode);
+      abilityHintEl.textContent = abilityMode === 'radar'
+        ? 'Радар наведён — выберите клетку в центре области 3×3'
+        : '';
+      updateAbilityUI();
+    }
+
+    function spawnRadarSweep(r, c) {
+      const centerIdx = r * COLS + c;
+      const centerEl = boardEl.children[centerIdx];
+      if (!centerEl) return;
+
+      const rect = centerEl.getBoundingClientRect();
+      const gapPx = 3;
+      const diameter = rect.width * 3 + gapPx * 2 + 8;
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+
+      const sweep = document.createElement('div');
+      sweep.className = 'radar-sweep-fx';
+      sweep.style.width = diameter + 'px';
+      sweep.style.height = diameter + 'px';
+      sweep.style.left = (cx - diameter / 2) + 'px';
+      sweep.style.top = (cy - diameter / 2) + 'px';
+      document.body.appendChild(sweep);
+      sweep.addEventListener('animationend', () => sweep.remove(), { once: true });
+    }
+
+    function useRadar(r, c) {
+      if (radarCharges <= 0) return;
+      radarCharges--;
+      setAbilityMode(null);
+
+      // Если это первое действие за игру — поле ещё пустое, генерируем мины
+      // так же, как при обычном первом клике (вокруг центра скана мин не будет).
+      if (firstClick) {
+        placeMines(r, c);
+        firstClick = false;
+        startTimer();
+        updateMineCounter();
+      }
+
+      spawnRadarSweep(r, c);
+
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = r + dr, nc = c + dc;
+          if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+          const ncell = board[nr][nc];
+          if (!ncell.exists || ncell.revealed) continue;
+
+          const idx = nr * COLS + nc;
+          const el = boardEl.children[idx];
+          if (!el) continue;
+
+          el.classList.add('radar-area');
+          el.addEventListener('animationend', () => el.classList.remove('radar-area'), { once: true });
+
+          if (ncell.mine) {
+            el.classList.add('radar-mine');
+            setTimeout(() => el.classList.remove('radar-mine'), 4500);
+          }
+        }
+      }
+
+      vibrate(20);
+    }
+
     function computeCellSizePx() {
       const gapPx = 3;
       const boardPaddingPx = 16;
@@ -534,6 +630,9 @@
       applyBoardSizing();
       renderBoard();
       updateMineCounter();
+
+      radarCharges = 1;
+      setAbilityMode(null);
     }
 
     // ТЕМА (фон + 2 акцента, настраивается пользователем) 
@@ -714,6 +813,12 @@
 
       modeOpenBtn.addEventListener('click', () => setMode('reveal'));
       modeFlagBtn.addEventListener('click', () => setMode('flag'));
+
+      radarBtn.addEventListener('click', () => {
+        if (gameOver || radarCharges <= 0) return;
+        setAbilityMode(abilityMode === 'radar' ? null : 'radar');
+      });
+      updateAbilityUI();
       setMode('reveal');
 
       diffButtons.forEach((btn) => {
