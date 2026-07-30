@@ -587,6 +587,10 @@ body.win::after {
 .board.targeting .cell.covered {
   cursor: crosshair;
 }
+.board.sixthsense-active,
+.board.sixthsense-active .cell.covered {
+  cursor: crosshair;
+}
 
 /* Вспышка по всей области 3×3 сканирования — чисто индикативная, не завязана на тему */
 .cell.radar-area {

@@ -20,9 +20,19 @@
     let abilityMode = null;      // null | 'radar' — какая способность сейчас "наведена" на клетку
     let radarCharges = 1;        // радар: 1 использование за забег
 
+    let sixthCharges = 1;        // шестое чувство: 1 использование за забег
+    let sixthActive = false;     // сейчас идёт сканирование курсором/пальцем
+    let sixthTimeoutId = null;
+    let sixthRAF = null;
+    let sixthPointerPos = null;  // {x, y} в координатах viewport
+    let sixthGlowEls = new Map(); // клетки, подсвеченные в текущем кадре
+
     const radarBtn = document.getElementById('abilityRadar');
     const radarChargeEl = document.getElementById('radarCharge');
     const abilityHintEl = document.getElementById('abilityHint');
+
+    const sixthBtn = document.getElementById('abilitySixth');
+    const sixthChargeEl = document.getElementById('sixthCharge');
 
     // DOM элементы
     const boardEl = document.getElementById('board');
@@ -398,6 +408,7 @@
         floatingResetBtn.classList.add('lose');
         vibrate([40, 60, 90]);
         setAbilityMode(null);
+        if (sixthActive) stopSixthSense();
         updateAbilityUI();
         return;
       }
@@ -427,6 +438,7 @@
         }
         updateMineCounter();
         setAbilityMode(null);
+        if (sixthActive) stopSixthSense();
         updateAbilityUI();
         setTimeout(() => {
           resetBtn.textContent = '😎';
@@ -508,8 +520,9 @@
     // подсвечивает мины внутри неё — клетки остаются закрытыми, флаги сам не ставит.
     function updateAbilityUI() {
       radarChargeEl.textContent = radarCharges;
-      radarBtn.disabled = radarCharges <= 0 || gameOver;
+      radarBtn.disabled = radarCharges <= 0 || gameOver || sixthActive;
       radarBtn.classList.toggle('armed', abilityMode === 'radar');
+      updateSixthUI();
     }
 
     function setAbilityMode(newMode) {
@@ -582,6 +595,140 @@
       vibrate(20);
     }
 
+    // СПОСОБНОСТИ: ШЕСТОЕ ЧУВСТВО 
+    // На несколько секунд курсор/палец превращается в "металлодетектор":
+    // рядом с закрытыми минами едва проступает красная аура, усиливающаяся
+    // только вплотную. Клетки не открываются и не помечаются — чистая подсказка "на ощупь".
+    const SIXTH_DURATION_MS = 5000;
+    const SIXTH_RADIUS_CELLS = 2;   // проверяем клетки в радиусе (в клетках) от курсора
+    const SIXTH_MAX_DIST = 1.8;     // дальше этого расстояния аура уже не видна
+
+    function updateSixthUI() {
+      sixthChargeEl.textContent = sixthCharges;
+      sixthBtn.disabled = sixthCharges <= 0 || gameOver || sixthActive || abilityMode === 'radar';
+    }
+
+    function cellElAtPoint(clientX, clientY) {
+      const el = document.elementFromPoint(clientX, clientY);
+      if (!el) return null;
+      const cellEl = el.closest('.cell');
+      if (!cellEl || !boardEl.contains(cellEl)) return null;
+      const r = parseInt(cellEl.dataset.r, 10);
+      const c = parseInt(cellEl.dataset.c, 10);
+      if (Number.isNaN(r) || Number.isNaN(c)) return null;
+      return { r, c };
+    }
+
+    function startSixthSense() {
+      if (sixthCharges <= 0 || sixthActive || gameOver || abilityMode === 'radar') return;
+
+      // Если это первое действие за игру — генерируем мины вокруг центра поля,
+      // как обычную "безопасную зону" при первом клике.
+      if (firstClick) {
+        placeMines(Math.floor(ROWS / 2), Math.floor(COLS / 2));
+        firstClick = false;
+        startTimer();
+        updateMineCounter();
+      }
+
+      sixthCharges--;
+      sixthActive = true;
+      boardEl.classList.add('sixthsense-active');
+      sixthBtn.classList.add('armed');
+      abilityHintEl.textContent = 'Шестое чувство активно — проведите курсором/пальцем по полю';
+      updateAbilityUI();
+
+      boardEl.addEventListener('pointermove', onSixthPointerMove);
+      boardEl.addEventListener('touchmove', onSixthTouchMove, { passive: true });
+      boardEl.addEventListener('pointerleave', onSixthPointerLeave);
+
+      sixthTimeoutId = setTimeout(stopSixthSense, SIXTH_DURATION_MS);
+    }
+
+    function onSixthPointerMove(e) {
+      sixthPointerPos = { x: e.clientX, y: e.clientY };
+      scheduleSixthUpdate();
+    }
+
+    function onSixthTouchMove(e) {
+      const t = e.touches[0];
+      if (!t) return;
+      sixthPointerPos = { x: t.clientX, y: t.clientY };
+      scheduleSixthUpdate();
+    }
+
+    function onSixthPointerLeave() {
+      sixthPointerPos = null;
+      scheduleSixthUpdate();
+    }
+
+    function scheduleSixthUpdate() {
+      if (sixthRAF) return;
+      sixthRAF = requestAnimationFrame(updateSixthGlow);
+    }
+
+    function updateSixthGlow() {
+      sixthRAF = null;
+      if (!sixthActive) return;
+
+      const newGlow = new Map();
+      const hit = sixthPointerPos ? cellElAtPoint(sixthPointerPos.x, sixthPointerPos.y) : null;
+
+      if (hit) {
+        for (let dr = -SIXTH_RADIUS_CELLS; dr <= SIXTH_RADIUS_CELLS; dr++) {
+          for (let dc = -SIXTH_RADIUS_CELLS; dc <= SIXTH_RADIUS_CELLS; dc++) {
+            const nr = hit.r + dr, nc = hit.c + dc;
+            if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+            const ncell = board[nr][nc];
+            if (!ncell || !ncell.exists || !ncell.mine || ncell.revealed) continue;
+
+            const dist = Math.sqrt(dr * dr + dc * dc);
+            if (dist > SIXTH_MAX_DIST) continue;
+
+            const t = Math.max(0, 1 - dist / SIXTH_MAX_DIST);
+            const intensity = Math.pow(t, 1.6); // резкий спад к краям — "предчувствие", а не явная подсказка
+
+            const idx = nr * COLS + nc;
+            const el = boardEl.children[idx];
+            if (!el) continue;
+
+            const alpha = (0.08 + 0.22 * intensity).toFixed(2);
+            const blur = (4 + 8 * intensity).toFixed(1);
+            el.style.boxShadow = `inset 0 0 ${blur}px rgba(255, 47, 110, ${alpha})`;
+            newGlow.set(el, true);
+          }
+        }
+      }
+
+      sixthGlowEls.forEach((_, el) => {
+        if (!newGlow.has(el)) el.style.boxShadow = '';
+      });
+      sixthGlowEls = newGlow;
+    }
+
+    function clearSixthGlow() {
+      sixthGlowEls.forEach((_, el) => { el.style.boxShadow = ''; });
+      sixthGlowEls = new Map();
+    }
+
+    function stopSixthSense() {
+      sixthActive = false;
+      if (sixthTimeoutId) { clearTimeout(sixthTimeoutId); sixthTimeoutId = null; }
+      if (sixthRAF) { cancelAnimationFrame(sixthRAF); sixthRAF = null; }
+
+      boardEl.classList.remove('sixthsense-active');
+      sixthBtn.classList.remove('armed');
+      if (abilityHintEl.textContent.startsWith('Шестое чувство')) abilityHintEl.textContent = '';
+
+      boardEl.removeEventListener('pointermove', onSixthPointerMove);
+      boardEl.removeEventListener('touchmove', onSixthTouchMove);
+      boardEl.removeEventListener('pointerleave', onSixthPointerLeave);
+
+      clearSixthGlow();
+      sixthPointerPos = null;
+      updateAbilityUI();
+    }
+
     function computeCellSizePx() {
       const gapPx = 3;
       const boardPaddingPx = 16;
@@ -633,9 +780,12 @@
 
       radarCharges = 1;
       setAbilityMode(null);
+      if (sixthActive) stopSixthSense();
+      sixthCharges = 1;
+      updateAbilityUI();
     }
 
-    // ТЕМА (фон + 2 акцента, настраивается пользователем) 
+    // ===== ТЕМА (фон + 2 акцента, настраивается пользователем) =====
     function applyTheme(theme) {
       const root = document.documentElement.style;
       // Светлый фон (bgL > 50) — слои должны темнеть от фона, а не светлеть,
@@ -815,8 +965,12 @@
       modeFlagBtn.addEventListener('click', () => setMode('flag'));
 
       radarBtn.addEventListener('click', () => {
-        if (gameOver || radarCharges <= 0) return;
+        if (gameOver || radarCharges <= 0 || sixthActive) return;
         setAbilityMode(abilityMode === 'radar' ? null : 'radar');
+      });
+      sixthBtn.addEventListener('click', () => {
+        if (gameOver || sixthCharges <= 0 || sixthActive || abilityMode === 'radar') return;
+        startSixthSense();
       });
       updateAbilityUI();
       setMode('reveal');
