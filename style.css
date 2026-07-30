@@ -636,6 +636,17 @@ body.win::after {
   100% { transform: rotate(360deg); opacity: 0; }
 }
 
+/* Иконки (Lucide, инлайн SVG) — размер берётся из font-size родителя
+   (там, где раньше был эмодзи), цвет — из свойства color через currentColor,
+   поэтому они сами перекрашиваются вместе с темой без доп. кода */
+.icon-svg {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: -0.15em;
+  flex-shrink: 0;
+}
+
 .footer {
   margin-top: 1rem;
   color: var(--text-muted);
