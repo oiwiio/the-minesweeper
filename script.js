@@ -515,13 +515,14 @@
       }
     }
 
-    // ===== СПОСОБНОСТИ: РАДАР =====
+    // СПОСОБНОСТИ: РАДАР 
     // Сканирует область 3×3 вокруг выбранной клетки и на несколько секунд
     // подсвечивает мины внутри неё — клетки остаются закрытыми, флаги сам не ставит.
     function updateAbilityUI() {
       radarChargeEl.textContent = radarCharges;
       radarBtn.disabled = radarCharges <= 0 || gameOver || sixthActive;
       radarBtn.classList.toggle('armed', abilityMode === 'radar');
+      radarBtn.setAttribute('aria-pressed', String(abilityMode === 'radar'));
       updateSixthUI();
     }
 
@@ -606,6 +607,7 @@
     function updateSixthUI() {
       sixthChargeEl.textContent = sixthCharges;
       sixthBtn.disabled = sixthCharges <= 0 || gameOver || sixthActive || abilityMode === 'radar';
+      sixthBtn.setAttribute('aria-pressed', String(sixthActive));
     }
 
     function cellElAtPoint(clientX, clientY) {
@@ -752,7 +754,11 @@
       ROWS = rows;
       COLS = cols;
       TOTAL_MINES = mines;
-      diffButtons.forEach((b) => b.classList.toggle('active', b === btn));
+      diffButtons.forEach((b) => {
+        const isActive = b === btn;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-pressed', String(isActive));
+      });
       resetGame();
     }
 
@@ -850,7 +856,9 @@
 
     function updatePresetButtons(activeName) {
       document.querySelectorAll('.preset-btn').forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.preset === activeName);
+        const isActive = btn.dataset.preset === activeName;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', String(isActive));
       });
     }
 
@@ -996,7 +1004,9 @@
     function setMode(newMode) {
       mode = newMode;
       modeOpenBtn.classList.toggle('active', mode === 'reveal');
+      modeOpenBtn.setAttribute('aria-pressed', String(mode === 'reveal'));
       modeFlagBtn.classList.toggle('active', mode === 'flag');
+      modeFlagBtn.setAttribute('aria-pressed', String(mode === 'flag'));
     }
 
     init();

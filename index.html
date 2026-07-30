@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Сапёр с настраиваемыми темами и способностями: радар и шестое чувство. Три уровня сложности, играется с мыши и с телефона.">
+  <meta name="theme-color" content="#08080f">
   <title>Сапер · базовая версия</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,17 +19,17 @@
     <div class="mine-counter" id="timerDisplay">000</div>
   </div>
   <div class="difficulty-panel">
-    <button class="diff-btn active" data-rows="9" data-cols="9" data-mines="10" type="button">9×9</button>
-    <button class="diff-btn" data-rows="12" data-cols="12" data-mines="25" type="button">12×12</button>
-    <button class="diff-btn" data-rows="24" data-cols="24" data-mines="99" type="button">24×24</button>
+    <button class="diff-btn active" data-rows="9" data-cols="9" data-mines="10" type="button" aria-pressed="true">9×9</button>
+    <button class="diff-btn" data-rows="12" data-cols="12" data-mines="25" type="button" aria-pressed="false">12×12</button>
+    <button class="diff-btn" data-rows="24" data-cols="24" data-mines="99" type="button" aria-pressed="false">24×24</button>
   </div>
   <div class="play-area">
     <div class="board" id="board"></div>
     <div class="mode-panel">
-      <button class="mode-btn active" id="modeOpen" data-mode="reveal" type="button">
+      <button class="mode-btn active" id="modeOpen" data-mode="reveal" type="button" aria-pressed="true">
         <span class="mode-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3L11 9.999"/><path d="M15.973 4.027A13 13 0 0 0 5.902 2.373c-1.398.342-1.092 2.158.277 2.601a19.9 19.9 0 0 1 5.822 3.024"/><path d="M16.001 11.999a19.9 19.9 0 0 1 3.024 5.824c.444 1.369 2.26 1.676 2.603.278A13 13 0 0 0 20 8.069"/><path d="M18.352 3.352a1.205 1.205 0 0 0-1.704 0l-5.296 5.296a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l5.296-5.296a1.205 1.205 0 0 0 0-1.704z"/></svg></span><span class="mode-label">Открыть</span>
       </button>
-      <button class="mode-btn" id="modeFlag" data-mode="flag" type="button">
+      <button class="mode-btn" id="modeFlag" data-mode="flag" type="button" aria-pressed="false">
         <span class="mode-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></span><span class="mode-label">Флаг</span>
       </button>
     </div>
@@ -32,7 +37,7 @@
   <div class="abilities-panel" id="abilitiesPanel">
     <div class="abilities-title">Способности</div>
     <div class="abilities-row">
-      <button class="ability-btn" id="abilityRadar" data-ability="radar" type="button">
+      <button class="ability-btn" id="abilityRadar" data-ability="radar" type="button" aria-label="Радар" aria-pressed="false">
         <span class="ability-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></svg></span>
         <span class="ability-charge" id="radarCharge">1</span>
         <span class="ability-tooltip">
@@ -40,7 +45,7 @@
           <span class="ability-tooltip-desc">Сканирует область 3×3 вокруг выбранной клетки и на несколько секунд показывает, где внутри неё мины. Клетки остаются закрытыми. 1 заряд за игру.</span>
         </span>
       </button>
-      <button class="ability-btn" id="abilitySixth" data-ability="sixth" type="button">
+      <button class="ability-btn" id="abilitySixth" data-ability="sixth" type="button" aria-label="Шестое чувство" aria-pressed="false">
         <span class="ability-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 15 4 4"/><path d="M2.352 10.648a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.029-6.029a1 1 0 1 1 3 3l-6.029 6.029a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.365-6.367A1 1 0 0 0 8.716 4.282z"/><path d="m5 8 4 4"/></svg></span>
         <span class="ability-charge" id="sixthCharge">1</span>
         <span class="ability-tooltip">
@@ -67,10 +72,10 @@
     <div class="theme-group theme-presets">
       <div class="theme-group-title"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></svg> Готовые темы</div>
       <div class="preset-buttons">
-        <button class="preset-btn active" data-preset="neon" type="button" style="--preset-color: #00ffd0;">Неон</button>
-        <button class="preset-btn" data-preset="light" type="button" style="--preset-color: #f5f0e8;">Светлая</button>
-        <button class="preset-btn" data-preset="purple" type="button" style="--preset-color: #b174ff;">Фиолетовая</button>
-        <button class="preset-btn" data-preset="gray" type="button" style="--preset-color: #888;">Серая</button>
+        <button class="preset-btn active" data-preset="neon" type="button" style="--preset-color: #00ffd0;" aria-pressed="true">Неон</button>
+        <button class="preset-btn" data-preset="light" type="button" style="--preset-color: #f5f0e8;" aria-pressed="false">Светлая</button>
+        <button class="preset-btn" data-preset="purple" type="button" style="--preset-color: #b174ff;" aria-pressed="false">Фиолетовая</button>
+        <button class="preset-btn" data-preset="gray" type="button" style="--preset-color: #888;" aria-pressed="false">Серая</button>
       </div>
     </div>
 
