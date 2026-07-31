@@ -16,6 +16,14 @@
     let timerStarted = false;
     let mode = 'reveal';         // 'reveal' или 'flag' — режим тапа (для мобильной панели)
 
+    // ===== ЗВУК =====
+    const SOUND_STORAGE_KEY = 'minesweeper_sound';
+    let soundEnabled = true;
+    try {
+      soundEnabled = localStorage.getItem(SOUND_STORAGE_KEY) !== 'off';
+    } catch (e) {}
+    const soundToggleBtn = document.getElementById('soundToggle');
+
     // ===== СПОСОБНОСТИ =====
     let abilityMode = null;      // null | 'radar' — какая способность сейчас "наведена" на клетку
     let radarCharges = 1;        // радар: 1 использование за забег
@@ -315,6 +323,70 @@
       }
     }
 
+    // ===== ЗВУК: простые процедурные "бипы" через Web Audio, без файлов =====
+    let audioCtx = null;
+
+    function ensureAudioCtx() {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      if (!audioCtx) audioCtx = new AC();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function beep({ freq = 440, duration = 0.08, type = 'sine', gain = 0.12, delay = 0, glideTo = null }) {
+      const ctx = ensureAudioCtx();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = type;
+      const start = ctx.currentTime + delay;
+      osc.frequency.setValueAtTime(freq, start);
+      if (glideTo) osc.frequency.linearRampToValueAtTime(glideTo, start + duration);
+      g.gain.setValueAtTime(gain, start);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(g).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.03);
+    }
+
+    function playSound(name) {
+      if (!soundEnabled) return;
+      switch (name) {
+        case 'reveal':
+          beep({ freq: 520, duration: 0.045, type: 'square', gain: 0.05 });
+          break;
+        case 'chord':
+          beep({ freq: 620, duration: 0.05, type: 'square', gain: 0.06 });
+          beep({ freq: 820, duration: 0.05, type: 'square', gain: 0.05, delay: 0.04 });
+          break;
+        case 'flag':
+          beep({ freq: 700, duration: 0.06, type: 'triangle', gain: 0.08 });
+          break;
+        case 'unflag':
+          beep({ freq: 340, duration: 0.06, type: 'triangle', gain: 0.06 });
+          break;
+        case 'lose':
+          beep({ freq: 220, duration: 0.32, type: 'sawtooth', gain: 0.16, glideTo: 55 });
+          break;
+        case 'win':
+          [523, 659, 784, 1046].forEach((f, i) => beep({ freq: f, duration: 0.15, type: 'triangle', gain: 0.11, delay: i * 0.09 }));
+          break;
+        case 'radar':
+          beep({ freq: 900, duration: 0.14, type: 'sine', gain: 0.07, glideTo: 1500 });
+          break;
+        case 'sixth':
+          beep({ freq: 280, duration: 0.16, type: 'sine', gain: 0.08, glideTo: 480 });
+          break;
+      }
+    }
+
+    function updateSoundToggleUI() {
+      soundToggleBtn.classList.toggle('muted', !soundEnabled);
+      soundToggleBtn.setAttribute('aria-pressed', String(!soundEnabled));
+      soundToggleBtn.setAttribute('aria-label', soundEnabled ? 'Выключить звук' : 'Включить звук');
+    }
+
     function spawnConfetti() {
       const colors = ['#00ffd0', '#ff2f6e', '#35ff9e', '#ffd966', '#b174ff', '#40e0ff'];
       const count = 32;
@@ -358,6 +430,129 @@
       document.querySelectorAll('.confetti-piece, .shockwave-ring').forEach((el) => el.remove());
     }
 
+    function triggerLoss(r, c) {
+      gameActive = false;
+      gameOver = true;
+      stopTimer();
+      board[r][c].revealed = true;
+      revealAllMines();
+      markWrongFlags();
+      const idx = r * COLS + c;
+      const explodedEl = boardEl.children[idx];
+      if (explodedEl) {
+        explodedEl.classList.add('mine-exploded');
+        const rect = explodedEl.getBoundingClientRect();
+        spawnShockwave(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      }
+      resetBtn.textContent = '😵';
+      gameContainerEl.classList.add('lose');
+      boardEl.classList.add('lose');
+      document.body.classList.add('lose');
+      floatingResetBtn.classList.add('lose');
+      vibrate([40, 60, 90]);
+      setAbilityMode(null);
+      if (sixthActive) stopSixthSense();
+      updateAbilityUI();
+      playSound('lose');
+    }
+
+    function checkWinAndCelebrate(waveDuration) {
+      if (revealedCount !== countExistingCells() - TOTAL_MINES) return;
+      gameActive = false;
+      gameOver = true;
+      stopTimer();
+      for (let rr = 0; rr < ROWS; rr++) {
+        for (let cc = 0; cc < COLS; cc++) {
+          const ccell = board[rr][cc];
+          if (ccell.exists && ccell.mine && !ccell.flagged) {
+            ccell.flagged = true;
+            flagCount++;
+            updateCellElement(rr, cc);
+          }
+        }
+      }
+      updateMineCounter();
+      setAbilityMode(null);
+      if (sixthActive) stopSixthSense();
+      updateAbilityUI();
+      setTimeout(() => {
+        resetBtn.textContent = '😎';
+        gameContainerEl.classList.add('win');
+        boardEl.classList.add('win');
+        document.body.classList.add('win');
+        floatingResetBtn.classList.add('win');
+        spawnConfetti();
+        vibrate([30, 40, 30, 40, 70]);
+        playSound('win');
+      }, waveDuration);
+    }
+
+    // Открывает одну закрытую клетку: обрабатывает мину/число/каскад пустых
+    // клеток и проверку победы. Используется и обычным кликом, и чордингом.
+    function revealSingleCell(r, c) {
+      const cell = board[r][c];
+      if (!cell.exists || cell.flagged || cell.revealed) return;
+
+      if (firstClick) {
+        placeMines(r, c);
+        firstClick = false;
+        startTimer();
+        updateMineCounter();
+      }
+
+      if (cell.mine) {
+        triggerLoss(r, c);
+        return;
+      }
+
+      cell.revealed = true;
+      revealedCount++;
+      revealWithFlash(r, c);
+      playSound('reveal');
+
+      let waveDuration = 0;
+      if (cell.number === 0) {
+        waveDuration = revealEmptyCells(r, c);
+      }
+
+      checkWinAndCelebrate(waveDuration);
+    }
+
+    // Чординг: тап по уже открытой цифре. Если вокруг стоит ровно столько
+    // флагов, сколько показывает цифра, открывает все оставшиеся соседние
+    // клетки разом. ВАЖНО: считаются только флаги, а не то, где реально
+    // стоят мины — если флаг стоит не на той клетке, среди "оставшихся"
+    // соседей может оказаться настоящая мина, и открытие сработает как обычный
+    // проигрыш. Это стандартное поведение чординга, а не баг.
+    function performChord(r, c) {
+      const cell = board[r][c];
+      const neighbors = [];
+      let flaggedCount = 0;
+
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+          const ncell = board[nr][nc];
+          if (!ncell.exists) continue;
+          neighbors.push([nr, nc]);
+          if (ncell.flagged) flaggedCount++;
+        }
+      }
+
+      if (flaggedCount !== cell.number) return;
+
+      playSound('chord');
+      for (const [nr, nc] of neighbors) {
+        if (gameOver) break;
+        const ncell = board[nr][nc];
+        if (ncell.flagged || ncell.revealed) continue;
+        revealSingleCell(nr, nc);
+      }
+      vibrate(15);
+    }
+
     function onCellClick(e) {
       e.preventDefault();
       const div = e.currentTarget;
@@ -373,6 +568,11 @@
         return;
       }
 
+      if (cell.revealed && cell.number > 0 && !cell.mine) {
+        performChord(r, c);
+        return;
+      }
+
       if (mode === 'flag') {
         toggleFlag(r, c);
         return;
@@ -380,76 +580,7 @@
 
       if (cell.flagged || cell.revealed) return;
 
-      if (firstClick) {
-        placeMines(r, c);
-        firstClick = false;
-        startTimer();
-        updateMineCounter();
-      }
-
-      if (cell.mine) {
-        gameActive = false;
-        gameOver = true;
-        stopTimer();
-        cell.revealed = true;
-        revealAllMines();
-        markWrongFlags();
-        const idx = r * COLS + c;
-        const explodedEl = boardEl.children[idx];
-        if (explodedEl) {
-          explodedEl.classList.add('mine-exploded');
-          const rect = explodedEl.getBoundingClientRect();
-          spawnShockwave(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        }
-        resetBtn.textContent = '😵';
-        gameContainerEl.classList.add('lose');
-        boardEl.classList.add('lose');
-        document.body.classList.add('lose');
-        floatingResetBtn.classList.add('lose');
-        vibrate([40, 60, 90]);
-        setAbilityMode(null);
-        if (sixthActive) stopSixthSense();
-        updateAbilityUI();
-        return;
-      }
-
-      cell.revealed = true;
-      revealedCount++;
-      revealWithFlash(r, c);
-
-      let waveDuration = 0;
-      if (cell.number === 0) {
-        waveDuration = revealEmptyCells(r, c);
-      }
-
-      if (revealedCount === countExistingCells() - TOTAL_MINES) {
-        gameActive = false;
-        gameOver = true;
-        stopTimer();
-        for (let rr = 0; rr < ROWS; rr++) {
-          for (let cc = 0; cc < COLS; cc++) {
-            const ccell = board[rr][cc];
-            if (ccell.exists && ccell.mine && !ccell.flagged) {
-              ccell.flagged = true;
-              flagCount++;
-              updateCellElement(rr, cc);
-            }
-          }
-        }
-        updateMineCounter();
-        setAbilityMode(null);
-        if (sixthActive) stopSixthSense();
-        updateAbilityUI();
-        setTimeout(() => {
-          resetBtn.textContent = '😎';
-          gameContainerEl.classList.add('win');
-          boardEl.classList.add('win');
-          document.body.classList.add('win');
-          floatingResetBtn.classList.add('win');
-          spawnConfetti();
-          vibrate([30, 40, 30, 40, 70]);
-        }, waveDuration);
-      }
+      revealSingleCell(r, c);
     }
 
     function onCellRightClick(e) {
@@ -468,9 +599,11 @@
       if (!cell.flagged) {
         cell.flagged = true;
         flagCount++;
+        playSound('flag');
       } else {
         cell.flagged = false;
         flagCount--;
+        playSound('unflag');
       }
       updateMineCounter();
       updateCellElement(r, c);
@@ -515,7 +648,7 @@
       }
     }
 
-    // СПОСОБНОСТИ: РАДАР 
+    // ===== СПОСОБНОСТИ: РАДАР =====
     // Сканирует область 3×3 вокруг выбранной клетки и на несколько секунд
     // подсвечивает мины внутри неё — клетки остаются закрытыми, флаги сам не ставит.
     function updateAbilityUI() {
@@ -593,10 +726,11 @@
         }
       }
 
+      playSound('radar');
       vibrate(20);
     }
 
-    // СПОСОБНОСТИ: ШЕСТОЕ ЧУВСТВО 
+    // ===== СПОСОБНОСТИ: ШЕСТОЕ ЧУВСТВО =====
     // На несколько секунд курсор/палец превращается в "металлодетектор":
     // рядом с закрытыми минами едва проступает красная аура, усиливающаяся
     // только вплотную. Клетки не открываются и не помечаются — чистая подсказка "на ощупь".
@@ -639,6 +773,7 @@
       sixthBtn.classList.add('armed');
       abilityHintEl.textContent = 'Шестое чувство активно — проведите курсором/пальцем по полю';
       updateAbilityUI();
+      playSound('sixth');
 
       boardEl.addEventListener('pointermove', onSixthPointerMove);
       boardEl.addEventListener('touchmove', onSixthTouchMove, { passive: true });
@@ -982,6 +1117,14 @@
       });
       updateAbilityUI();
       setMode('reveal');
+
+      soundToggleBtn.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        try { localStorage.setItem(SOUND_STORAGE_KEY, soundEnabled ? 'on' : 'off'); } catch (e) {}
+        updateSoundToggleUI();
+        if (soundEnabled) { ensureAudioCtx(); playSound('flag'); }
+      });
+      updateSoundToggleUI();
 
       diffButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
