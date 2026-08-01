@@ -3,6 +3,7 @@
     let ROWS = 9;
     let COLS = 9;
     let TOTAL_MINES = 10;
+    let baseMineDensity = TOTAL_MINES / (ROWS * COLS); // "эталонная" плотность мин выбранной сложности
 
     // Состояние игры
     let board = [];              // 2D: { mine, number, revealed, flagged }
@@ -159,7 +160,56 @@
         }
         newBoard.push(row);
       }
+
+      // Пока только 9×9 — случайная "нестандартная" форма поля.
+      // Дальше решим, применять ли то же самое к 12×12/24×24.
+      if (ROWS === 9 && COLS === 9) {
+        applyRandomShape(newBoard);
+      }
+
       return newBoard;
+    }
+
+    // Растит случайную связную "кляксу" из центра поля (4-связность —
+    // без диагональных "перешейков"), пока не наберёт целевое число клеток.
+    // Связность гарантирована по построению: каждая новая клетка примыкает
+    // к уже существующей.
+    function applyRandomShape(newBoard) {
+      const totalCells = ROWS * COLS;
+      const minExisting = Math.min(totalCells, TOTAL_MINES + 25);
+      const maxExisting = Math.max(minExisting, Math.floor(totalCells * 0.9));
+      const targetCount = minExisting + Math.floor(Math.random() * (maxExisting - minExisting + 1));
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) newBoard[r][c].exists = false;
+      }
+
+      const startR = Math.floor(ROWS / 2);
+      const startC = Math.floor(COLS / 2);
+      newBoard[startR][startC].exists = true;
+      let count = 1;
+
+      const DIRS4 = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+      const frontier = new Set();
+      function addFrontier(r, c) {
+        for (const [dr, dc] of DIRS4) {
+          const nr = r + dr, nc = c + dc;
+          if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+          if (!newBoard[nr][nc].exists) frontier.add(nr + ',' + nc);
+        }
+      }
+      addFrontier(startR, startC);
+
+      while (count < targetCount && frontier.size) {
+        const candidates = Array.from(frontier);
+        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+        frontier.delete(pick);
+        const [r, c] = pick.split(',').map(Number);
+        if (newBoard[r][c].exists) continue;
+        newBoard[r][c].exists = true;
+        count++;
+        addFrontier(r, c);
+      }
     }
 
     function countExistingCells() {
@@ -889,6 +939,7 @@
       ROWS = rows;
       COLS = cols;
       TOTAL_MINES = mines;
+      baseMineDensity = TOTAL_MINES / (ROWS * COLS);
       diffButtons.forEach((b) => {
         const isActive = b === btn;
         b.classList.toggle('active', isActive);
@@ -915,6 +966,18 @@
       clearFxLayers();
 
       board = createEmptyBoard();
+
+      // Форма может быть меньше полного прямоугольника (нестандартное поле) —
+      // держим ту же плотность мин, что и в "эталонной" версии сложности,
+      // а не фиксированное число, иначе лёгкая клякса из 35 клеток окажется
+      // куда опаснее, чем задумано, а большая — куда безопаснее.
+      const existingCount = countExistingCells();
+      if (existingCount < ROWS * COLS) {
+        const safetyMargin = 10; // запас под первый клик + минимум открытого пространства
+        const maxMines = Math.max(3, existingCount - safetyMargin);
+        TOTAL_MINES = Math.min(maxMines, Math.max(3, Math.round(existingCount * baseMineDensity)));
+      }
+
       applyBoardSizing();
       renderBoard();
       updateMineCounter();
