@@ -374,6 +374,18 @@ body.win::after {
 .cell[data-number="7"] { color: #ff4fd8; text-shadow: 0 0 6px rgba(255, 79, 216, 0.7); }
 .cell[data-number="8"] { color: #d8d8e8; text-shadow: 0 0 6px rgba(216, 216, 232, 0.5); }
 
+/* На светлом фоне (bgL > 50, класс ставится в applyTheme) те же неоновые
+   цвета почти не видны — переключаем на затемнённые варианты той же
+   цветовой идентичности, с лёгкой тёмной тенью вместо свечения. */
+.light-bg .cell[data-number="1"] { color: #0077b6; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12); }
+.light-bg .cell[data-number="2"] { color: #128a4f; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12); }
+.light-bg .cell[data-number="3"] { color: #d81e3f; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12); }
+.light-bg .cell[data-number="4"] { color: #6a2fd6; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12); }
+.light-bg .cell[data-number="5"] { color: #b35900; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12); }
+.light-bg .cell[data-number="6"] { color: #0090ad; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12); }
+.light-bg .cell[data-number="7"] { color: #b8189a; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12); }
+.light-bg .cell[data-number="8"] { color: #4a4a5e; text-shadow: none; }
+
 .difficulty-panel {
   display: flex;
   gap: 0.5rem;

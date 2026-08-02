@@ -17,7 +17,7 @@
     let timerStarted = false;
     let mode = 'reveal';         // 'reveal' или 'flag' — режим тапа (для мобильной панели)
 
-    // ===== ЗВУК =====
+    // ЗВУК
     const SOUND_STORAGE_KEY = 'minesweeper_sound';
     let soundEnabled = true;
     try {
@@ -25,7 +25,7 @@
     } catch (e) {}
     const soundToggleBtn = document.getElementById('soundToggle');
 
-    // ===== СПОСОБНОСТИ =====
+    // СПОСОБНОСТИ 
     let abilityMode = null;      // null | 'radar' — какая способность сейчас "наведена" на клетку
     let radarCharges = 1;        // радар: 1 использование за забег
 
@@ -48,7 +48,7 @@
     const echoBtn = document.getElementById('abilityEcho');
     const echoChargeEl = document.getElementById('echoCharge');
 
-    // ===== МИНИ-КАРТА =====
+    // МИНИ-КАРТА 
     const minimapCanvas = document.getElementById('minimapCanvas');
     const minimapCtx = minimapCanvas.getContext('2d');
     const minimapEchoCanvas = document.getElementById('minimapEcho');
@@ -97,7 +97,7 @@
       a2H: 342, a2S: 100, a2L: 59
     };
 
-    // ===== ПРЕСЕТЫ ТЕМ =====
+    // ПРЕСЕТЫ ТЕМ 
     const PRESETS = {
       neon: {
         bgH: 240, bgS: 33, bgL: 3,
@@ -387,7 +387,7 @@
       }
     }
 
-    // ===== ЗВУК: простые процедурные "бипы" через Web Audio, без файлов =====
+    // ЗВУК: простые процедурные "бипы" через Web Audio, без файлов 
     let audioCtx = null;
 
     function ensureAudioCtx() {
@@ -719,7 +719,7 @@
       }
     }
 
-    // ===== МИНИ-КАРТА =====
+    // МИНИ-КАРТА 
     // Подстраивает разрешение canvas под текущий размер поля (вызывается
     // при смене сложности / новой партии).
     function resizeMinimap() {
@@ -791,7 +791,7 @@
       minimapModalEl.setAttribute('aria-hidden', 'true');
     }
 
-    // ===== СПОСОБНОСТИ: РАДАР =====
+    // СПОСОБНОСТИ: РАДАР
     // Сканирует область 3×3 вокруг выбранной клетки и на несколько секунд
     // подсвечивает мины внутри неё — клетки остаются закрытыми, флаги сам не ставит.
     function updateAbilityUI() {
@@ -874,7 +874,7 @@
       vibrate(20);
     }
 
-    // ===== СПОСОБНОСТИ: ШЕСТОЕ ЧУВСТВО =====
+    // СПОСОБНОСТИ: ШЕСТОЕ ЧУВСТВО 
     // На несколько секунд курсор/палец превращается в "металлодетектор":
     // рядом с закрытыми минами едва проступает красная аура, усиливающаяся
     // только вплотную. Клетки не открываются и не помечаются — чистая подсказка "на ощупь".
@@ -1010,7 +1010,7 @@
       updateAbilityUI();
     }
 
-    // ===== СПОСОБНОСТИ: ЭХОЛОТ =====
+    // СПОСОБНОСТИ: ЭХОЛОТ 
     // Делит всё поле на фиксированную сетку крупных зон (не больше 4×4,
     // независимо от размера поля — специально, чтобы способность не "мельчала"
     // на большом поле) и на несколько секунд подсвечивает на мини-карте,
@@ -1179,13 +1179,16 @@
       updateMinimap();
     }
 
-    // ===== ТЕМА (фон + 2 акцента, настраивается пользователем) =====
+    // ТЕМА (фон + 2 акцента, настраивается пользователем)
     function applyTheme(theme) {
       const root = document.documentElement.style;
       // Светлый фон (bgL > 50) — слои должны темнеть от фона, а не светлеть,
       // иначе рамки/поверхности упираются в чистый белый и пропадают.
       const surfaceDir = theme.bgL > 50 ? -1 : 1;
       root.setProperty('--surface-dir', surfaceDir);
+      // Тот же порог включает тёмные варианты цифр (.light-bg в CSS) —
+      // неоновые цвета, рассчитанные на тёмный фон, на светлом становятся нечитаемыми.
+      document.documentElement.classList.toggle('light-bg', theme.bgL > 50);
       root.setProperty('--bg-h', theme.bgH);
       root.setProperty('--bg-s', theme.bgS + '%');
       root.setProperty('--bg-l', theme.bgL + '%');
@@ -1273,7 +1276,7 @@
       setThemeInputs(initialTheme);
       applyTheme(initialTheme);
 
-      // ===== ПРЕСЕТЫ: клик по кнопке готовой темы =====
+      // ПРЕСЕТЫ: клик по кнопке готовой темы 
       document.querySelectorAll('.preset-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           const presetName = btn.dataset.preset;
