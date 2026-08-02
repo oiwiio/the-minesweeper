@@ -32,8 +32,12 @@
       <button class="mode-btn" id="modeFlag" data-mode="flag" type="button" aria-pressed="false">
         <span class="mode-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></span><span class="mode-label">Флаг</span>
       </button>
+      <button class="mode-btn" id="mapToggle" type="button" aria-label="Обзор поля" aria-haspopup="dialog">
+        <span class="mode-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg></span><span class="mode-label">Карта</span>
+      </button>
     </div>
   </div>
+
   <div class="abilities-panel" id="abilitiesPanel">
     <div class="abilities-title">Способности</div>
     <div class="abilities-row">
@@ -51,6 +55,14 @@
         <span class="ability-tooltip">
           <span class="ability-tooltip-title">Шестое чувство</span>
           <span class="ability-tooltip-desc">На 5 секунд курсор/палец становится "металлодетектором" — рядом с минами едва заметно проступает красная аура, усиливаясь только вплотную. 1 заряд за игру.</span>
+        </span>
+      </button>
+      <button class="ability-btn" id="abilityEcho" data-ability="echo" type="button" aria-label="Эхолот" aria-pressed="false">
+        <span class="ability-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"/></svg></span>
+        <span class="ability-charge" id="echoCharge">1</span>
+        <span class="ability-tooltip">
+          <span class="ability-tooltip-title">Эхолот</span>
+          <span class="ability-tooltip-desc">Делит всё поле на крупные зоны и на пару секунд показывает на МИНИ-КАРТЕ, где мин больше, а где почти нет. Точные клетки не выдаёт. 1 заряд за игру.</span>
         </span>
       </button>
     </div>
@@ -105,6 +117,22 @@
     </div>
 
     <button class="theme-reset" id="themeReset" type="button">Сбросить на стандартную тему</button>
+  </div>
+
+  <div class="minimap-backdrop" id="minimapBackdrop"></div>
+  <div class="minimap-modal" id="minimapModal" role="dialog" aria-hidden="true">
+    <div class="minimap-modal-header">
+      <span>Обзор поля</span>
+      <button class="theme-close" id="minimapClose" type="button" aria-label="Закрыть"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <div class="minimap-frame">
+      <canvas id="minimapCanvas"></canvas>
+      <canvas id="minimapEcho"></canvas>
+    </div>
+    <div class="minimap-progress">
+      <div class="minimap-progress-fill" id="minimapProgressFill"></div>
+    </div>
+    <div class="minimap-progress-label" id="minimapProgressLabel">0%</div>
   </div>
 
   <script src="./script.js"> </script>

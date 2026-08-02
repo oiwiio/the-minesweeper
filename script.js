@@ -43,6 +43,23 @@
     const sixthBtn = document.getElementById('abilitySixth');
     const sixthChargeEl = document.getElementById('sixthCharge');
 
+    let echoCharges = 1;         // эхолот: 1 использование за забег
+    let echoTimeoutId = null;
+    const echoBtn = document.getElementById('abilityEcho');
+    const echoChargeEl = document.getElementById('echoCharge');
+
+    // ===== МИНИ-КАРТА =====
+    const minimapCanvas = document.getElementById('minimapCanvas');
+    const minimapCtx = minimapCanvas.getContext('2d');
+    const minimapEchoCanvas = document.getElementById('minimapEcho');
+    const minimapEchoCtx = minimapEchoCanvas.getContext('2d');
+    const minimapProgressFill = document.getElementById('minimapProgressFill');
+    const minimapProgressLabel = document.getElementById('minimapProgressLabel');
+    const mapToggleBtn = document.getElementById('mapToggle');
+    const minimapModalEl = document.getElementById('minimapModal');
+    const minimapBackdropEl = document.getElementById('minimapBackdrop');
+    const minimapCloseBtn = document.getElementById('minimapClose');
+
     // DOM элементы
     const boardEl = document.getElementById('board');
     const mineCounterEl = document.getElementById('mineCounter');
@@ -425,6 +442,10 @@
         case 'sixth':
           beep({ freq: 280, duration: 0.16, type: 'sine', gain: 0.08, glideTo: 480 });
           break;
+        case 'echo':
+          beep({ freq: 180, duration: 0.2, type: 'sine', gain: 0.09 });
+          beep({ freq: 180, duration: 0.2, type: 'sine', gain: 0.06, delay: 0.22 });
+          break;
       }
     }
 
@@ -501,6 +522,7 @@
       if (sixthActive) stopSixthSense();
       updateAbilityUI();
       playSound('lose');
+      updateMinimap();
     }
 
     function checkWinAndCelebrate(waveDuration) {
@@ -563,6 +585,7 @@
       }
 
       checkWinAndCelebrate(waveDuration);
+      updateMinimap();
     }
 
     // Чординг: тап по уже открытой цифре. Если вокруг стоит ровно столько
@@ -655,6 +678,7 @@
       updateMineCounter();
       updateCellElement(r, c);
       vibrate(15);
+      updateMinimap();
     }
 
     function revealAllMines() {
@@ -695,6 +719,78 @@
       }
     }
 
+    // ===== МИНИ-КАРТА =====
+    // Подстраивает разрешение canvas под текущий размер поля (вызывается
+    // при смене сложности / новой партии).
+    function resizeMinimap() {
+      const maxDim = Math.max(ROWS, COLS);
+      const pxPerCell = Math.max(3, Math.min(12, Math.floor(220 / maxDim)));
+      const w = COLS * pxPerCell;
+      const h = ROWS * pxPerCell;
+      minimapCanvas.width = w;
+      minimapCanvas.height = h;
+      minimapEchoCanvas.width = w;
+      minimapEchoCanvas.height = h;
+    }
+
+    // Перерисовывает состояние поля: открыто / закрыто / флаг / нет клетки.
+    // Мины никогда не показываются здесь до конца игры.
+    function drawMinimapBase() {
+      const w = minimapCanvas.width;
+      const h = minimapCanvas.height;
+      const cellW = w / COLS;
+      const cellH = h / ROWS;
+      const styles = getComputedStyle(document.documentElement);
+      const accent1 = styles.getPropertyValue('--accent-1').trim() || '#35ffce';
+      const accent2 = styles.getPropertyValue('--accent-2').trim() || '#ff2f6e';
+
+      minimapCtx.clearRect(0, 0, w, h);
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = board[r][c];
+          if (!cell.exists) continue;
+          let color = 'rgba(255,255,255,0.13)'; // закрытая клетка
+          if (cell.revealed) {
+            color = accent1;
+            minimapCtx.globalAlpha = 0.55;
+          } else if (cell.flagged) {
+            color = accent2;
+            minimapCtx.globalAlpha = 0.9;
+          } else {
+            minimapCtx.globalAlpha = 1;
+          }
+          minimapCtx.fillStyle = color;
+          minimapCtx.fillRect(Math.floor(c * cellW), Math.floor(r * cellH), Math.ceil(cellW), Math.ceil(cellH));
+        }
+      }
+      minimapCtx.globalAlpha = 1;
+    }
+
+    function updateMinimapProgress() {
+      const total = countExistingCells() - TOTAL_MINES;
+      const pct = total > 0 ? Math.round((revealedCount / total) * 100) : 0;
+      minimapProgressFill.style.width = pct + '%';
+      minimapProgressLabel.textContent = pct + '%';
+    }
+
+    function updateMinimap() {
+      drawMinimapBase();
+      updateMinimapProgress();
+    }
+
+    function openMinimapModal() {
+      updateMinimap();
+      minimapModalEl.classList.add('open');
+      minimapBackdropEl.classList.add('open');
+      minimapModalEl.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeMinimapModal() {
+      minimapModalEl.classList.remove('open');
+      minimapBackdropEl.classList.remove('open');
+      minimapModalEl.setAttribute('aria-hidden', 'true');
+    }
+
     // ===== СПОСОБНОСТИ: РАДАР =====
     // Сканирует область 3×3 вокруг выбранной клетки и на несколько секунд
     // подсвечивает мины внутри неё — клетки остаются закрытыми, флаги сам не ставит.
@@ -704,6 +800,7 @@
       radarBtn.classList.toggle('armed', abilityMode === 'radar');
       radarBtn.setAttribute('aria-pressed', String(abilityMode === 'radar'));
       updateSixthUI();
+      updateEchoUI();
     }
 
     function setAbilityMode(newMode) {
@@ -913,6 +1010,95 @@
       updateAbilityUI();
     }
 
+    // ===== СПОСОБНОСТИ: ЭХОЛОТ =====
+    // Делит всё поле на фиксированную сетку крупных зон (не больше 4×4,
+    // независимо от размера поля — специально, чтобы способность не "мельчала"
+    // на большом поле) и на несколько секунд подсвечивает на мини-карте,
+    // где мин относительно больше, а где почти нет. Точные клетки не выдаёт.
+    function updateEchoUI() {
+      echoChargeEl.textContent = echoCharges;
+      echoBtn.disabled = echoCharges <= 0 || gameOver;
+    }
+
+    function computeDensityGrid() {
+      const sectorsR = Math.min(4, ROWS);
+      const sectorsC = Math.min(4, COLS);
+      const rowStep = ROWS / sectorsR;
+      const colStep = COLS / sectorsC;
+      const grid = [];
+
+      for (let sr = 0; sr < sectorsR; sr++) {
+        const rStart = Math.floor(sr * rowStep);
+        const rEnd = Math.floor((sr + 1) * rowStep);
+        for (let sc = 0; sc < sectorsC; sc++) {
+          const cStart = Math.floor(sc * colStep);
+          const cEnd = Math.floor((sc + 1) * colStep);
+
+          let existing = 0, mines = 0;
+          for (let r = rStart; r < rEnd; r++) {
+            for (let c = cStart; c < cEnd; c++) {
+              const cell = board[r][c];
+              if (!cell.exists) continue;
+              existing++;
+              if (cell.mine) mines++;
+            }
+          }
+          grid.push({ rStart, rEnd, cStart, cEnd, density: existing > 0 ? mines / existing : 0 });
+        }
+      }
+      return grid;
+    }
+
+    function drawEchoOverlay() {
+      const grid = computeDensityGrid();
+      const densities = grid.map((s) => s.density);
+      const maxDensity = Math.max(0.0001, ...densities);
+
+      const w = minimapEchoCanvas.width;
+      const h = minimapEchoCanvas.height;
+      minimapEchoCtx.clearRect(0, 0, w, h);
+
+      for (const sector of grid) {
+        const t = sector.density / maxDensity; // 0..1 относительно самой опасной зоны на ЭТОМ поле
+        const x = (sector.cStart / COLS) * w;
+        const y = (sector.rStart / ROWS) * h;
+        const sw = ((sector.cEnd - sector.cStart) / COLS) * w;
+        const sh = ((sector.rEnd - sector.rStart) / ROWS) * h;
+
+        // от тускло-бирюзового (мало мин) до тревожно-красного (много мин)
+        const r = Math.round(53 + (255 - 53) * t);
+        const g = Math.round(255 - (255 - 47) * t);
+        const b = Math.round(206 - (206 - 110) * t);
+        minimapEchoCtx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.55)`;
+        minimapEchoCtx.fillRect(x, y, sw, sh);
+      }
+    }
+
+    function useEcholot() {
+      if (echoCharges <= 0 || gameOver) return;
+
+      if (firstClick) {
+        abilityHintEl.textContent = 'Эхолоту нужны мины на поле — сначала откройте любую клетку';
+        setTimeout(() => {
+          if (abilityHintEl.textContent.startsWith('Эхолоту')) abilityHintEl.textContent = '';
+        }, 2200);
+        return;
+      }
+
+      echoCharges--;
+      updateAbilityUI();
+      drawEchoOverlay();
+      minimapEchoCanvas.classList.add('pulse');
+      playSound('echo');
+      vibrate(20);
+
+      if (echoTimeoutId) clearTimeout(echoTimeoutId);
+      echoTimeoutId = setTimeout(() => {
+        minimapEchoCanvas.classList.remove('pulse');
+        setTimeout(() => minimapEchoCtx.clearRect(0, 0, minimapEchoCanvas.width, minimapEchoCanvas.height), 450);
+      }, 3200);
+    }
+
     function computeCellSizePx() {
       const gapPx = 3;
       const boardPaddingPx = 16;
@@ -983,7 +1169,13 @@
       setAbilityMode(null);
       if (sixthActive) stopSixthSense();
       sixthCharges = 1;
+      if (echoTimeoutId) { clearTimeout(echoTimeoutId); echoTimeoutId = null; }
+      minimapEchoCanvas.classList.remove('pulse');
+      echoCharges = 1;
       updateAbilityUI();
+
+      resizeMinimap();
+      updateMinimap();
     }
 
     // ===== ТЕМА (фон + 2 акцента, настраивается пользователем) =====
@@ -1006,6 +1198,7 @@
       swatchBg.style.background = `hsl(${theme.bgH} ${theme.bgS}% ${theme.bgL}%)`;
       swatchA1.style.background = `hsl(${theme.a1H} ${theme.a1S}% ${theme.a1L}%)`;
       swatchA2.style.background = `hsl(${theme.a2H} ${theme.a2S}% ${theme.a2L}%)`;
+      if (typeof drawMinimapBase === 'function' && board && board.length) drawMinimapBase();
     }
 
     function setThemeInputs(theme) {
@@ -1122,6 +1315,10 @@
       themeCloseBtn.addEventListener('click', closeThemePanel);
       themeBackdropEl.addEventListener('click', closeThemePanel);
 
+      mapToggleBtn.addEventListener('click', openMinimapModal);
+      minimapCloseBtn.addEventListener('click', closeMinimapModal);
+      minimapBackdropEl.addEventListener('click', closeMinimapModal);
+
       themeResetBtn.addEventListener('click', () => {
         activePreset = 'neon';
         updatePresetButtons('neon');
@@ -1146,6 +1343,9 @@
       renderBoard();
       updateMineCounter();
       resetBtn.textContent = '😊';
+
+      resizeMinimap();
+      updateMinimap();
 
       resetBtn.addEventListener('click', resetGame);
       floatingResetBtn.addEventListener('click', resetGame);
@@ -1174,6 +1374,9 @@
       sixthBtn.addEventListener('click', () => {
         if (gameOver || sixthCharges <= 0 || sixthActive || abilityMode === 'radar') return;
         startSixthSense();
+      });
+      echoBtn.addEventListener('click', () => {
+        useEcholot();
       });
       updateAbilityUI();
       setMode('reveal');
