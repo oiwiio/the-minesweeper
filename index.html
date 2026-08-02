@@ -22,9 +22,12 @@
     <button class="diff-btn active" data-rows="9" data-cols="9" data-mines="10" type="button" aria-pressed="true">9×9</button>
     <button class="diff-btn" data-rows="12" data-cols="12" data-mines="25" type="button" aria-pressed="false">12×12</button>
     <button class="diff-btn" data-rows="24" data-cols="24" data-mines="99" type="button" aria-pressed="false">24×24</button>
+    <button class="diff-btn" data-rows="64" data-cols="64" data-mines="704" type="button" aria-pressed="false">64×64</button>
   </div>
   <div class="play-area">
-    <div class="board" id="board"></div>
+    <div class="board-viewport" id="boardViewport">
+      <div class="board" id="board"></div>
+    </div>
     <div class="mode-panel">
       <button class="mode-btn active" id="modeOpen" data-mode="reveal" type="button" aria-pressed="true">
         <span class="mode-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3L11 9.999"/><path d="M15.973 4.027A13 13 0 0 0 5.902 2.373c-1.398.342-1.092 2.158.277 2.601a19.9 19.9 0 0 1 5.822 3.024"/><path d="M16.001 11.999a19.9 19.9 0 0 1 3.024 5.824c.444 1.369 2.26 1.676 2.603.278A13 13 0 0 0 20 8.069"/><path d="M18.352 3.352a1.205 1.205 0 0 0-1.704 0l-5.296 5.296a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l5.296-5.296a1.205 1.205 0 0 0 0-1.704z"/></svg></span><span class="mode-label">Открыть</span>
@@ -62,7 +65,7 @@
         <span class="ability-charge" id="echoCharge">1</span>
         <span class="ability-tooltip">
           <span class="ability-tooltip-title">Эхолот</span>
-          <span class="ability-tooltip-desc">Делит всё поле на крупные зоны и на пару секунд показывает на МИНИ-КАРТЕ, где мин больше, а где почти нет. Точные клетки не выдаёт. 1 заряд за игру.</span>
+          <span class="ability-tooltip-desc">Делит всё поле на крупные зоны и на пару секунд показывает на мини-карте, где мин больше, а где почти нет. Точные клетки не выдаёт. 1 заряд за игру.</span>
         </span>
       </button>
     </div>

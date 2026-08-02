@@ -202,6 +202,14 @@ body.win::after {
 .smiley:active {
   transform: scale(0.9);
 }
+.board-viewport {
+  max-width: calc(100vw - 2.5rem);
+  max-height: min(70vh, 620px);
+  overflow: auto;
+  border-radius: 8px;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+}
 .board {
   display: inline-grid;
   grid-template-columns: repeat(var(--cols, 9), var(--cell-size, 2.3rem));
@@ -212,7 +220,6 @@ body.win::after {
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
   transition: border-color 0.4s ease, box-shadow 0.4s ease;
-  max-width: calc(100vw - 2.5rem);
   min-width: 0;
 }
 .board.lose {

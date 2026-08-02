@@ -1091,6 +1091,7 @@
       minimapEchoCanvas.classList.add('pulse');
       playSound('echo');
       vibrate(20);
+      openMinimapModal();
 
       if (echoTimeoutId) clearTimeout(echoTimeoutId);
       echoTimeoutId = setTimeout(() => {
@@ -1103,7 +1104,7 @@
       const gapPx = 3;
       const boardPaddingPx = 16;
       const margin = 40;
-      const minSize = 10;
+      const minSize = 16; // поле теперь скроллится, если не влезает — незачем сжимать клетки до пикселя
       const maxSize = 37;
       const availableWidth = Math.min(window.innerWidth - margin, 640);
       const totalGaps = (COLS - 1) * gapPx;
