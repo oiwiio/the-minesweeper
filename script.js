@@ -236,33 +236,132 @@
       return total;
     }
 
-    function placeMines(firstR, firstC) {
-      let placed = 0;
-      while (placed < TOTAL_MINES) {
-        const r = Math.floor(Math.random() * ROWS);
-        const c = Math.floor(Math.random() * COLS);
-        if (!board[r][c].exists) continue;
-        if (board[r][c].mine) continue;
-        if (Math.abs(r - firstR) <= 1 && Math.abs(c - firstC) <= 1) continue;
-        board[r][c].mine = true;
-        placed++;
-      }
-
-      for (let r = 0; r < ROWS; r++) {
+function placeMines(firstR, firstC) {
+    let placed = 0;
+    
+    // Получаем список всех существующих клеток, исключая зону вокруг первого клика
+    const availableCells = [];
+    for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
-          if (!board[r][c].exists || board[r][c].mine) continue;
-          let count = 0;
-          for (let dr = -1; dr <= 1; dr++) {
-            for (let dc = -1; dc <= 1; dc++) {
-              if (dr === 0 && dc === 0) continue;
-              const nr = r + dr, nc = c + dc;
-              if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc].exists && board[nr][nc].mine) count++;
-            }
-          }
-          board[r][c].number = count;
+            if (!board[r][c].exists) continue;
+            if (Math.abs(r - firstR) <= 1 && Math.abs(c - firstC) <= 1) continue;
+            availableCells.push({ r, c });
         }
-      }
     }
+    
+    // Если мин больше, чем доступных клеток — уменьшаем количество
+    const minesToPlace = Math.min(TOTAL_MINES, availableCells.length);
+    
+    // УЛУЧШЕННЫЙ АЛГОРИТМ РАССЕИВАНИЯ МИН 
+    // Используем "стратифицированную" выборку: разбиваем поле на сетку зон
+    // и распределяем мины равномерно между ними
+    
+    // Определяем размер зоны: стараемся, чтобы зон было примерно в 2-4 раза больше, чем мин
+    const totalCells = availableCells.length;
+    const zonesX = Math.min(COLS, Math.max(3, Math.ceil(Math.sqrt(totalCells / (minesToPlace / 2)))));
+    const zonesY = Math.min(ROWS, Math.max(3, Math.ceil(Math.sqrt(totalCells / (minesToPlace / 2)))));
+    
+    // Создаём зоны и собираем клетки по зонам
+    const zones = {};
+    for (const cell of availableCells) {
+        const zx = Math.floor((cell.c / COLS) * zonesX);
+        const zy = Math.floor((cell.r / ROWS) * zonesY);
+        const key = `${zx},${zy}`;
+        if (!zones[key]) zones[key] = [];
+        zones[key].push(cell);
+    }
+    
+    const zoneKeys = Object.keys(zones);
+    const zoneCount = zoneKeys.length;
+    
+    // Базовая квота мин на зону (равномерное распределение)
+    const baseQuota = Math.floor(minesToPlace / zoneCount);
+    let remainingMines = minesToPlace;
+    
+    // Сначала даём каждой зоне базовую квоту
+    const zoneQuotas = {};
+    for (const key of zoneKeys) {
+        const quota = Math.min(baseQuota, zones[key].length);
+        zoneQuotas[key] = quota;
+        remainingMines -= quota;
+    }
+    
+    // Оставшиеся мины распределяем случайно, но с ограничением
+    // — не больше 2 дополнительных мин на зону
+    const shuffledKeys = [...zoneKeys].sort(() => Math.random() - 0.5);
+    for (const key of shuffledKeys) {
+        if (remainingMines <= 0) break;
+        const maxExtra = Math.min(2, zones[key].length - zoneQuotas[key]);
+        const extra = Math.min(remainingMines, maxExtra);
+        zoneQuotas[key] += extra;
+        remainingMines -= extra;
+    }
+    
+    // Если мины всё ещё остались (маловероятно, но на всякий случай)
+    // — добавляем их в случайные зоны с запасом
+    while (remainingMines > 0) {
+        for (const key of shuffledKeys) {
+            if (remainingMines <= 0) break;
+            const maxExtra = zones[key].length - zoneQuotas[key];
+            if (maxExtra > 0) {
+                zoneQuotas[key] += 1;
+                remainingMines--;
+            }
+        }
+        // Если все зоны заполнены, выходим из цикла
+        if (remainingMines > 0) {
+            // Проверяем, есть ли вообще свободные клетки
+            let totalFree = 0;
+            for (const key of zoneKeys) {
+                totalFree += zones[key].length - zoneQuotas[key];
+            }
+            if (totalFree === 0) break;
+        }
+    }
+    
+    // Расставляем мины по зонам согласно квотам
+    for (const key of zoneKeys) {
+        const quota = zoneQuotas[key] || 0;
+        const cells = zones[key];
+        // Перемешиваем клетки в зоне
+        for (let i = cells.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [cells[i], cells[j]] = [cells[j], cells[i]];
+        }
+        // Берём первые quota клеток
+        for (let i = 0; i < Math.min(quota, cells.length); i++) {
+            const { r, c } = cells[i];
+            board[r][c].mine = true;
+            placed++;
+        }
+    }
+
+    // Если по какой-то причине мин всё ещё не хватает — добиваем случайными
+    while (placed < TOTAL_MINES) {
+        const idx = Math.floor(Math.random() * availableCells.length);
+        const { r, c } = availableCells[idx];
+        if (!board[r][c].mine) {
+            board[r][c].mine = true;
+            placed++;
+        }
+    }
+
+    // Вычисляем числа
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (!board[r][c].exists || board[r][c].mine) continue;
+            let count = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const nr = r + dr, nc = c + dc;
+                    if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc].exists && board[nr][nc].mine) count++;
+                }
+            }
+            board[r][c].number = count;
+        }
+    }
+}
 
     function renderBoard() {
       boardEl.innerHTML = '';
