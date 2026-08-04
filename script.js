@@ -58,7 +58,29 @@
     const mapToggleBtn = document.getElementById('mapToggle');
     const minimapModalEl = document.getElementById('minimapModal');
     const minimapBackdropEl = document.getElementById('minimapBackdrop');
-    const minimapCloseBtn = document.getElementById('minimapClose');
+    const minimapCloseBtn = document.getElementById('minimapClose'); 
+
+    //КАРТОГРАФИЧЕСКИЙ РЕЖИМ 
+    let mapModeActive = false;
+    let mapPanX = 0;
+    let mapPanY = 0;
+    let mapScale = 1;
+    let mapMinScale = 0.3;
+    let mapMaxScale = 3;
+    let mapIsDragging = false;
+    let mapDragStartX = 0;
+    let mapDragStartY = 0;
+    let mapDragStartPanX = 0;
+    let mapDragStartPanY = 0;
+    let mapTouchStartDist = 0;
+    let mapTouchStartScale = 1;
+    let mapInitialScale = 1;
+
+const zoomControls = document.getElementById('zoomControls');
+const zoomInBtn = document.getElementById('zoomIn');
+const zoomOutBtn = document.getElementById('zoomOut');
+const zoomResetBtn = document.getElementById('zoomReset');
+const boardViewport = document.getElementById('boardViewport');
 
     // DOM элементы
     const boardEl = document.getElementById('board');
@@ -1218,66 +1240,88 @@ function placeMines(firstR, firstC) {
       boardEl.style.setProperty('--cell-size', size + 'px');
     }
 
-    function setDifficulty(rows, cols, mines, btn) {
-      ROWS = rows;
-      COLS = cols;
-      TOTAL_MINES = mines;
-      baseMineDensity = TOTAL_MINES / (ROWS * COLS);
-      diffButtons.forEach((b) => {
+function setDifficulty(rows, cols, mines, btn) {
+    // Если в map-режиме — выходим
+    if (mapModeActive) {
+        exitMapMode();
+    }
+    
+    ROWS = rows;
+    COLS = cols;
+    TOTAL_MINES = mines;
+    baseMineDensity = TOTAL_MINES / (ROWS * COLS);
+    diffButtons.forEach((b) => {
         const isActive = b === btn;
         b.classList.toggle('active', isActive);
         b.setAttribute('aria-pressed', String(isActive));
-      });
-      resetGame();
+    });
+    resetGame();
+    
+    // Если выбрали 64×64 — автоматически включаем map-режим
+    if (ROWS === 64 && COLS === 64) {
+        setTimeout(enterMapMode, 100);
     }
+}
 
-    function resetGame() {
-      stopTimer();
-      timerStarted = false;
-      seconds = 0;
-      updateTimer();
-      gameActive = true;
-      gameOver = false;
-      firstClick = true;
-      flagCount = 0;
-      revealedCount = 0;
-      resetBtn.textContent = '😊';
-      gameContainerEl.classList.remove('lose', 'win');
-      document.body.classList.remove('lose', 'win');
-      boardEl.classList.remove('lose', 'win');
-      floatingResetBtn.classList.remove('lose', 'win');
-      clearFxLayers();
+function resetGame() {
+    // Если в map-режиме — выходим
+    if (mapModeActive) {
+        exitMapMode();
+    }
+    
+    stopTimer();
+    timerStarted = false;
+    seconds = 0;
+    updateTimer();
+    gameActive = true;
+    gameOver = false;
+    firstClick = true;
+    flagCount = 0;
+    revealedCount = 0;
+    resetBtn.textContent = '😊';
+    gameContainerEl.classList.remove('lose', 'win');
+    document.body.classList.remove('lose', 'win');
+    boardEl.classList.remove('lose', 'win');
+    floatingResetBtn.classList.remove('lose', 'win');
+    clearFxLayers();
 
-      board = createEmptyBoard();
+    board = createEmptyBoard();
 
-      // Форма может быть меньше полного прямоугольника (нестандартное поле) —
-      // держим ту же плотность мин, что и в "эталонной" версии сложности,
-      // а не фиксированное число, иначе лёгкая клякса из 35 клеток окажется
-      // куда опаснее, чем задумано, а большая — куда безопаснее.
-      const existingCount = countExistingCells();
-      if (existingCount < ROWS * COLS) {
-        const safetyMargin = 10; // запас под первый клик + минимум открытого пространства
+    const existingCount = countExistingCells();
+    if (existingCount < ROWS * COLS) {
+        const safetyMargin = 10;
         const maxMines = Math.max(3, existingCount - safetyMargin);
         TOTAL_MINES = Math.min(maxMines, Math.max(3, Math.round(existingCount * baseMineDensity)));
-      }
-
-      applyBoardSizing();
-      renderBoard();
-      updateMineCounter();
-
-      radarCharges = 1;
-      setAbilityMode(null);
-      if (sixthActive) stopSixthSense();
-      sixthCharges = 1;
-      if (echoTimeoutId) { clearTimeout(echoTimeoutId); echoTimeoutId = null; }
-      minimapEchoCanvas.classList.remove('pulse');
-      echoCharges = 1;
-      updateAbilityUI();
-
-      resizeMinimap();
-      updateMinimap();
     }
 
+    // Если это 64×64 — используем map-размер клеток
+    if (ROWS === 64 && COLS === 64) {
+        applyMapBoardSizing();
+        setTimeout(fitMapToView, 50);
+    } else {
+        applyBoardSizing();
+    }
+    
+    renderBoard();
+    updateMineCounter();
+
+    radarCharges = 1;
+    setAbilityMode(null);
+    if (sixthActive) stopSixthSense();
+    sixthCharges = 1;
+    if (echoTimeoutId) { clearTimeout(echoTimeoutId); echoTimeoutId = null; }
+    minimapEchoCanvas.classList.remove('pulse');
+    echoCharges = 1;
+    updateAbilityUI();
+
+    resizeMinimap();
+    updateMinimap();
+    
+    // Если выбрали 64×64 — включаем map-режим
+    if (ROWS === 64 && COLS === 64) {
+        setTimeout(enterMapMode, 100);
+    }
+}
     // ТЕМА (фон + 2 акцента, настраивается пользователем)
     function applyTheme(theme) {
       const root = document.documentElement.style;
@@ -1418,7 +1462,7 @@ function placeMines(firstR, firstC) {
       themeCloseBtn.addEventListener('click', closeThemePanel);
       themeBackdropEl.addEventListener('click', closeThemePanel);
 
-      mapToggleBtn.addEventListener('click', openMinimapModal);
+      mapToggleBtn.addEventListener('click', toggleMapMode);
       minimapCloseBtn.addEventListener('click', closeMinimapModal);
       minimapBackdropEl.addEventListener('click', closeMinimapModal);
 
@@ -1518,5 +1562,227 @@ function placeMines(firstR, firstC) {
       modeFlagBtn.setAttribute('aria-pressed', String(mode === 'flag'));
     }
 
-    init();
-  })();
+    init(); 
+
+    // Инициализация картографического режима
+    zoomInBtn.addEventListener('click', zoomIn);
+    zoomOutBtn.addEventListener('click', zoomOut);
+    zoomResetBtn.addEventListener('click', zoomReset);
+
+    // Автоматический вход в map-режим при выборе 64×64
+    // (уже обработано в setDifficulty и resetGame)
+
+    initMapPanning();
+    initMapTouchPanning();
+
+    // При ресайзе пересчитываем позицию
+    window.addEventListener('resize', () => {
+        if (mapModeActive) {
+            setTimeout(fitMapToView, 100);
+        }
+    });
+
+    // ФУНКЦИИ КАРТОГРАФИЧЕСКОГО РЕЖИМА 
+    function computeMapCellSize() {
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+        const gapPx = 1;
+        const paddingPx = 4;
+
+        // Размер клетки чтобы поле влезало в экран с запасом 10%
+        const fitW = (viewportW * 0.9 - paddingPx * 2 - (COLS - 1) * gapPx) / COLS;
+        const fitH = (viewportH * 0.9 - paddingPx * 2 - (ROWS - 1) * gapPx) / ROWS;
+        const fitSize = Math.min(fitW, fitH);
+
+        // На 64×64 размер получается около 8-10px — этого достаточно для карты
+        return Math.max(6, Math.min(20, fitSize));
+    }
+
+  function applyMapBoardSizing() {
+    const size = computeMapCellSize();
+    boardEl.style.setProperty('--cols', COLS);
+    boardEl.style.setProperty('--rows', ROWS);
+    boardEl.style.setProperty('--cell-size', size + 'px');
+    
+    // Сбрасываем позицию при первом открытии
+    if (!mapIsDragging) {
+        mapPanX = 0;
+        mapPanY = 0;
+        mapScale = 1;
+        mapInitialScale = 1;
+    }
+    updateMapTransform();
+  }
+
+  function updateMapTransform() {
+      const scale = mapScale * mapInitialScale;
+      boardEl.style.transform = `translate(${mapPanX}px, ${mapPanY}px) scale(${scale})`;
+      boardEl.style.transformOrigin = '0 0';
+  }
+
+  function fitMapToView() {
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
+    const boardW = COLS * parseFloat(boardEl.style.getPropertyValue('--cell-size')) + (COLS - 1) * 1 + 4;
+    const boardH = ROWS * parseFloat(boardEl.style.getPropertyValue('--cell-size')) + (ROWS - 1) * 1 + 4;
+    
+    const scaleX = (viewportW * 0.85) / boardW;
+    const scaleY = (viewportH * 0.85) / boardH;
+    mapInitialScale = Math.min(1, Math.min(scaleX, scaleY));
+    mapScale = 1;
+    mapPanX = (viewportW - boardW * mapInitialScale) / 2;
+    mapPanY = (viewportH - boardH * mapInitialScale) / 2;
+    updateMapTransform();
+    updateZoomIndicator();
+  }
+
+  function updateZoomIndicator() {
+    let indicator = document.querySelector('.zoom-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'zoom-indicator';
+        document.body.appendChild(indicator);
+    }
+    const currentScale = mapScale * mapInitialScale;
+    indicator.textContent = Math.round(currentScale * 100) + '%';
+  }
+
+  function enterMapMode() {
+    mapModeActive = true;
+    document.body.classList.add('map-mode');
+    zoomControls.style.display = 'flex';
+    
+    applyMapBoardSizing();
+    setTimeout(fitMapToView, 50);
+    
+    // Переключаем режим на reveal для удобства
+    setMode('reveal');
+    
+    // Показываем мини-карту автоматически
+    openMinimapModal();
+  }
+
+  function exitMapMode() {
+    mapModeActive = false;
+    document.body.classList.remove('map-mode');
+    zoomControls.style.display = 'none';
+    boardEl.style.transform = '';
+    boardEl.style.transformOrigin = '';
+    
+    // Закрываем мини-карту
+    closeMinimapModal();
+  }
+
+    function toggleMapMode() {
+    if (mapModeActive) {
+        exitMapMode();
+        // Возвращаем обычный размер клеток
+        applyBoardSizing();
+    } else {
+        enterMapMode();
+    }
+    }
+
+// Панорамирование мышью
+  function initMapPanning() {
+    boardViewport.addEventListener('mousedown', (e) => {
+        if (!mapModeActive || e.button !== 0) return;
+        mapIsDragging = true;
+        mapDragStartX = e.clientX;
+        mapDragStartY = e.clientY;
+        mapDragStartPanX = mapPanX;
+        mapDragStartPanY = mapPanY;
+        boardViewport.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!mapIsDragging || !mapModeActive) return;
+        const dx = e.clientX - mapDragStartX;
+        const dy = e.clientY - mapDragStartY;
+        mapPanX = mapDragStartPanX + dx;
+        mapPanY = mapDragStartPanY + dy;
+        updateMapTransform();
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (mapIsDragging) {
+            mapIsDragging = false;
+            boardViewport.style.cursor = 'grab';
+        }
+    });
+  }
+
+// Панорамирование тач-жестами
+  function initMapTouchPanning() {
+    let touchStartX = 0, touchStartY = 0;
+    let touchStartPanX = 0, touchStartPanY = 0;
+    let lastTouchDist = 0;
+    let isTouchDragging = false;
+    
+    boardViewport.addEventListener('touchstart', (e) => {
+        if (!mapModeActive) return;
+        const touches = e.touches;
+        if (touches.length === 1) {
+            isTouchDragging = true;
+            touchStartX = touches[0].clientX;
+            touchStartY = touches[0].clientY;
+            touchStartPanX = mapPanX;
+            touchStartPanY = mapPanY;
+        } else if (touches.length === 2) {
+            // Два пальца — зум
+            isTouchDragging = false;
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+            mapTouchStartDist = lastTouchDist;
+            mapTouchStartScale = mapScale;
+        }
+    }, { passive: true });
+    
+    boardViewport.addEventListener('touchmove', (e) => {
+        if (!mapModeActive) return;
+        const touches = e.touches;
+        if (touches.length === 1 && isTouchDragging) {
+            const dx = touches[0].clientX - touchStartX;
+            const dy = touches[0].clientY - touchStartY;
+            mapPanX = touchStartPanX + dx;
+            mapPanY = touchStartPanY + dy;
+            updateMapTransform();
+        } else if (touches.length === 2) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const scaleDelta = dist / mapTouchStartDist;
+            mapScale = Math.min(mapMaxScale, Math.max(mapMinScale, mapTouchStartScale * scaleDelta));
+            updateMapTransform();
+            updateZoomIndicator();
+        }
+    }, { passive: true });
+    
+    boardViewport.addEventListener('touchend', (e) => {
+        isTouchDragging = false;
+    }, { passive: true });
+  }
+
+  // Зум кнопками
+  function zoomIn() {
+    if (!mapModeActive) return;
+    mapScale = Math.min(mapMaxScale, mapScale * 1.25);
+    updateMapTransform();
+    updateZoomIndicator();
+  }
+
+  function zoomOut() {
+    if (!mapModeActive) return;
+    mapScale = Math.max(mapMinScale, mapScale / 1.25);
+    updateMapTransform();
+    updateZoomIndicator();
+  }
+
+  function zoomReset() {
+    if (!mapModeActive) return;
+    mapScale = 1;
+    fitMapToView();
+  }
+})();
