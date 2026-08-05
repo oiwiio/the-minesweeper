@@ -1253,11 +1253,12 @@ function setDifficulty(rows, cols, mines, btn) {
 }
 
 function resetGame() {
-    // Если в map-режиме — выходим
-    if (mapModeActive) {
-        exitMapMode();
-    }
-    
+    // Запоминаем, были ли мы уже в полноэкранном режиме — если да, остаёмся
+    // в нём и просто пересчитываем размеры под новое поле, не закрывая
+    // и не открывая заново окно и мини-карту (иначе они дёргались бы
+    // при каждом сбросе, даже через смайлик).
+    const wasMapMode = mapModeActive;
+
     stopTimer();
     timerStarted = false;
     seconds = 0;
@@ -1283,8 +1284,7 @@ function resetGame() {
         TOTAL_MINES = Math.min(maxMines, Math.max(3, Math.round(existingCount * baseMineDensity)));
     }
 
-    // Если это 64×64 — используем map-размер клеток
-    if (ROWS === 64 && COLS === 64) {
+    if (wasMapMode) {
         applyMapBoardSizing();
         setTimeout(fitMapToView, 50);
     } else {
@@ -1305,11 +1305,6 @@ function resetGame() {
 
     resizeMinimap();
     updateMinimap();
-    
-    // Если выбрали 64×64 — включаем map-режим
-    if (ROWS === 64 && COLS === 64) {
-        setTimeout(enterMapMode, 100);
-    }
 }
     // ТЕМА (фон + 2 акцента, настраивается пользователем)
     function applyTheme(theme) {
@@ -1541,6 +1536,14 @@ function resetGame() {
       });
 
       setupThemePanel();
+
+      // Если по умолчанию активна сложность с data-fullscreen (сейчас это
+      // 12×12) — сразу входим в полноэкранный режим, а не только при
+      // переключении на неё вручную.
+      const initialDiffBtn = diffButtons.find((b) => b.classList.contains('active'));
+      if (initialDiffBtn && initialDiffBtn.dataset.fullscreen === 'true') {
+        setTimeout(enterMapMode, 100);
+      }
     }
 
     function setMode(newMode) {
@@ -1646,9 +1649,6 @@ function resetGame() {
     
     // Переключаем режим на reveal для удобства
     setMode('reveal');
-    
-    // Показываем мини-карту автоматически
-    openMinimapModal();
   }
 
   function exitMapMode() {
