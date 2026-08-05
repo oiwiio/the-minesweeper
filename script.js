@@ -1,8 +1,8 @@
 (function() {
     // НАСТРОЙКИ (меняются через панель сложности)
-    let ROWS = 9;
-    let COLS = 9;
-    let TOTAL_MINES = 10;
+    let ROWS = 12;
+    let COLS = 12;
+    let TOTAL_MINES = 25;
     let baseMineDensity = TOTAL_MINES / (ROWS * COLS); // "эталонная" плотность мин выбранной сложности
 
     // Состояние игры
@@ -258,10 +258,16 @@ const boardViewport = document.getElementById('boardViewport');
       return total;
     }
 
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
 function placeMines(firstR, firstC) {
-    let placed = 0;
-    
-    // Получаем список всех существующих клеток, исключая зону вокруг первого клика
+    // Все доступные клетки вне защитной зоны первого клика
     const availableCells = [];
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
@@ -270,101 +276,84 @@ function placeMines(firstR, firstC) {
             availableCells.push({ r, c });
         }
     }
-    
-    // Если мин больше, чем доступных клеток — уменьшаем количество
+
     const minesToPlace = Math.min(TOTAL_MINES, availableCells.length);
-    
-    // УЛУЧШЕННЫЙ АЛГОРИТМ РАССЕИВАНИЯ МИН 
-    // Используем "стратифицированную" выборку: разбиваем поле на сетку зон
-    // и распределяем мины равномерно между ними
-    
-    // Определяем размер зоны: стараемся, чтобы зон было примерно в 2-4 раза больше, чем мин
-    const totalCells = availableCells.length;
-    const zonesX = Math.min(COLS, Math.max(3, Math.ceil(Math.sqrt(totalCells / (minesToPlace / 2)))));
-    const zonesY = Math.min(ROWS, Math.max(3, Math.ceil(Math.sqrt(totalCells / (minesToPlace / 2)))));
-    
-    // Создаём зоны и собираем клетки по зонам
-    const zones = {};
-    for (const cell of availableCells) {
-        const zx = Math.floor((cell.c / COLS) * zonesX);
-        const zy = Math.floor((cell.r / ROWS) * zonesY);
-        const key = `${zx},${zy}`;
-        if (!zones[key]) zones[key] = [];
-        zones[key].push(cell);
-    }
-    
-    const zoneKeys = Object.keys(zones);
-    const zoneCount = zoneKeys.length;
-    
-    // Базовая квота мин на зону (равномерное распределение)
-    const baseQuota = Math.floor(minesToPlace / zoneCount);
-    let remainingMines = minesToPlace;
-    
-    // Сначала даём каждой зоне базовую квоту
-    const zoneQuotas = {};
-    for (const key of zoneKeys) {
-        const quota = Math.min(baseQuota, zones[key].length);
-        zoneQuotas[key] = quota;
-        remainingMines -= quota;
-    }
-    
-    // Оставшиеся мины распределяем случайно, но с ограничением
-    // — не больше 2 дополнительных мин на зону
-    const shuffledKeys = [...zoneKeys].sort(() => Math.random() - 0.5);
-    for (const key of shuffledKeys) {
-        if (remainingMines <= 0) break;
-        const maxExtra = Math.min(2, zones[key].length - zoneQuotas[key]);
-        const extra = Math.min(remainingMines, maxExtra);
-        zoneQuotas[key] += extra;
-        remainingMines -= extra;
-    }
-    
-    // Если мины всё ещё остались (маловероятно, но на всякий случай)
-    // — добавляем их в случайные зоны с запасом
-    while (remainingMines > 0) {
-        for (const key of shuffledKeys) {
-            if (remainingMines <= 0) break;
-            const maxExtra = zones[key].length - zoneQuotas[key];
-            if (maxExtra > 0) {
-                zoneQuotas[key] += 1;
-                remainingMines--;
+    let placed = 0;
+
+    // Локальная плотность — сколько мин уже стоит в радиусе одной клетки
+    // (3×3) вокруг каждой клетки. Не даём этому расти бесконтрольно —
+    // иначе получаются "гнёзда" из 6-8 мин в одном месте.
+    const localDensity = Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
+    const MAX_LOCAL = 4;
+
+    function bumpDensity(r, c) {
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                const nr = r + dr, nc = c + dc;
+                if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+                if (!board[nr][nc].exists) continue;
+                localDensity[nr][nc]++;
             }
-        }
-        // Если все зоны заполнены, выходим из цикла
-        if (remainingMines > 0) {
-            // Проверяем, есть ли вообще свободные клетки
-            let totalFree = 0;
-            for (const key of zoneKeys) {
-                totalFree += zones[key].length - zoneQuotas[key];
-            }
-            if (totalFree === 0) break;
-        }
-    }
-    
-    // Расставляем мины по зонам согласно квотам
-    for (const key of zoneKeys) {
-        const quota = zoneQuotas[key] || 0;
-        const cells = zones[key];
-        // Перемешиваем клетки в зоне
-        for (let i = cells.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [cells[i], cells[j]] = [cells[j], cells[i]];
-        }
-        // Берём первые quota клеток
-        for (let i = 0; i < Math.min(quota, cells.length); i++) {
-            const { r, c } = cells[i];
-            board[r][c].mine = true;
-            placed++;
         }
     }
 
-    // Если по какой-то причине мин всё ещё не хватает — добиваем случайными
-    while (placed < TOTAL_MINES) {
-        const idx = Math.floor(Math.random() * availableCells.length);
-        const { r, c } = availableCells[idx];
-        if (!board[r][c].mine) {
-            board[r][c].mine = true;
+    // ФАЗА 1 — зоны фиксированного размера (не завязаны на число мин).
+    // Гарантируем, что ни один участок карты не останется совсем без мин —
+    // иначе один клик по нему раскрывает половину поля.
+    const ZONE_SIZE = 6;
+    const zonesX = Math.max(1, Math.ceil(COLS / ZONE_SIZE));
+    const zoneMap = new Map();
+    for (const cell of availableCells) {
+        const key = Math.floor(cell.r / ZONE_SIZE) * zonesX + Math.floor(cell.c / ZONE_SIZE);
+        if (!zoneMap.has(key)) zoneMap.set(key, []);
+        zoneMap.get(key).push(cell);
+    }
+    const zones = shuffleArray(Array.from(zoneMap.values()));
+    zones.forEach(shuffleArray);
+
+    const density = availableCells.length > 0 ? minesToPlace / availableCells.length : 0;
+
+    for (const cells of zones) {
+        if (placed >= minesToPlace) break;
+        let quota = Math.round(cells.length * density);
+        if (quota === 0 && cells.length >= 4) quota = 1; // минимум 1 мина на достаточно крупную зону
+        quota = Math.min(quota, cells.length, minesToPlace - placed);
+
+        let placedInZone = 0;
+        for (const cell of cells) {
+            if (placedInZone >= quota) break;
+            if (board[cell.r][cell.c].mine) continue;
+            board[cell.r][cell.c].mine = true;
+            bumpDensity(cell.r, cell.c);
             placed++;
+            placedInZone++;
+        }
+    }
+
+    // ФАЗА 2 — остаток бюджета мин довешиваем по всему полю, отдавая
+    // предпочтение клеткам с наименьшей текущей локальной плотностью
+    // (анти-кластеринг: не больше MAX_LOCAL мин в радиусе одной клетки).
+    if (placed < minesToPlace) {
+        let remaining = availableCells.filter((cell) => !board[cell.r][cell.c].mine);
+        remaining.sort((a, b) => (localDensity[a.r][a.c] - localDensity[b.r][b.c]) || (Math.random() - 0.5));
+
+        for (const cell of remaining) {
+            if (placed >= minesToPlace) break;
+            if (localDensity[cell.r][cell.c] >= MAX_LOCAL) continue;
+            board[cell.r][cell.c].mine = true;
+            bumpDensity(cell.r, cell.c);
+            placed++;
+        }
+
+        // Если из-за лимита MAX_LOCAL всё ещё не хватает мин — добираем
+        // без ограничения (лучше немного плотнее, чем не досчитаться).
+        if (placed < minesToPlace) {
+            for (const cell of remaining) {
+                if (placed >= minesToPlace) break;
+                if (board[cell.r][cell.c].mine) continue;
+                board[cell.r][cell.c].mine = true;
+                placed++;
+            }
         }
     }
 
@@ -1257,8 +1246,8 @@ function setDifficulty(rows, cols, mines, btn) {
     });
     resetGame();
     
-    // Если выбрали 64×64 — автоматически включаем map-режим
-    if (ROWS === 64 && COLS === 64) {
+    // Если у кнопки стоит data-fullscreen — автоматически включаем map-режим
+    if (btn && btn.dataset.fullscreen === 'true') {
         setTimeout(enterMapMode, 100);
     }
 }
