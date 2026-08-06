@@ -1522,6 +1522,11 @@ function resetGame() {
 
       diffButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
+          // Если кнопка заблокирована — показываем парольный гейт
+          if (btn.dataset.locked === 'true') {
+            showPasswordGate(btn);
+            return;
+          }
           const rows = parseInt(btn.dataset.rows);
           const cols = parseInt(btn.dataset.cols);
           const mines = parseInt(btn.dataset.mines);
@@ -1554,7 +1559,70 @@ function resetGame() {
       modeFlagBtn.setAttribute('aria-pressed', String(mode === 'flag'));
     }
 
+  // ПАРОЛЬНЫЙ ГЕЙТ
+      let pendingLockedBtn = null;
+
+      function showPasswordGate(btn) {
+        pendingLockedBtn = btn;
+        const modal = document.getElementById('passwordGateModal');
+        const backdrop = document.getElementById('passwordGateBackdrop');
+        const input = document.getElementById('passwordGateInput');
+        const error = document.getElementById('passwordGateError');
+  
+        modal.classList.add('open');
+        backdrop.classList.add('open');
+        error.classList.remove('show');
+        input.value = '';
+        input.focus();
+      }
+
+      function hidePasswordGate() {
+        const modal = document.getElementById('passwordGateModal');
+        const backdrop = document.getElementById('passwordGateBackdrop');
+        modal.classList.remove('open');
+        backdrop.classList.remove('open');
+        pendingLockedBtn = null;
+      }
+
+      function confirmPassword() {
+        const input = document.getElementById('passwordGateInput');
+        const error = document.getElementById('passwordGateError');
+  
+     // ПАРОЛЬ — 123 (потом заменишь на реальную проверку)
+     if (input.value === '123') {
+       // Правильный пароль — разблокируем кнопку и запускаем поле
+       if (pendingLockedBtn) {
+         pendingLockedBtn.dataset.locked = 'false'; // снимаем блокировку
+         const rows = parseInt(pendingLockedBtn.dataset.rows);
+         const cols = parseInt(pendingLockedBtn.dataset.cols);
+         const mines = parseInt(pendingLockedBtn.dataset.mines);
+         setDifficulty(rows, cols, mines, pendingLockedBtn);
+         pendingLockedBtn = null;
+       }
+       hidePasswordGate();
+     } else {
+        // Неверный пароль
+        error.classList.add('show');
+        input.value = '';
+        input.focus();
+        // Тряска
+        input.style.animation = 'none';
+        setTimeout(() => {
+          input.style.animation = 'shake 0.3s ease';
+        }, 10);
+      }
+  }
+
     init(); 
+
+    // ПАРОЛЬНЫЙ ГЕЙТ — обработчики
+      document.getElementById('passwordGateConfirm').addEventListener('click', confirmPassword);
+      document.getElementById('passwordGateCancel').addEventListener('click', hidePasswordGate);
+      document.getElementById('passwordGateBackdrop').addEventListener('click', hidePasswordGate);
+      document.getElementById('passwordGateInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmPassword();
+        if (e.key === 'Escape') hidePasswordGate();
+      });     
 
     // Инициализация картографического режима
     zoomInBtn.addEventListener('click', zoomIn);

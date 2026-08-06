@@ -1273,10 +1273,14 @@ body.map-mode .play-area {
   margin: 0;
 }
 
+/* Инструменты (режим) — правое "плечо" подковы, зеркально зуму */
 body.map-mode .mode-panel {
   position: fixed;
-  bottom: 20px;
-  right: 16px;
+  left: 78%;
+  top: 58%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
   flex-direction: column;
   gap: 6px;
   margin: 0;
@@ -1318,11 +1322,13 @@ body.map-mode .mode-btn.active[data-mode="flag"] {
   box-shadow: 0 0 12px rgba(255, 47, 110, 0.15);
 }
 
-/* Панель способностей — левый нижний угол */
+/* Панель способностей — по центру экрана, но заметно ниже кластера "радар/управление" */
 body.map-mode .abilities-panel {
   position: fixed;
-  bottom: 20px;
-  left: 16px;
+  left: 50%;
+  top: 68%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
   margin: 0;
   padding: 8px;
   background: rgba(0, 0, 0, 0.7);
@@ -1382,12 +1388,13 @@ body.map-mode .footer {
   display: none;
 }
 
-/* Управление зумом — справа по центру */
+/* Управление зумом — левое "плечо" подковы вокруг нижней части экрана */
 body.map-mode .zoom-controls {
   position: fixed;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 22%;
+  top: 58%;
+  right: auto;
+  transform: translate(-50%, -50%);
   z-index: 27;
   display: flex !important;
   flex-direction: column;
@@ -1504,12 +1511,13 @@ body.map-mode .sound-toggle {
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
 }
 
-/* Индикатор зума */
+/* Индикатор зума — в проёме между "плечами" подковы и способностями снизу */
 body.map-mode .zoom-indicator {
   position: fixed;
-  bottom: 80px;
+  top: 63%;
   left: 50%;
-  transform: translateX(-50%);
+  bottom: auto;
+  transform: translate(-50%, -50%);
   color: rgba(255, 255, 255, 0.3);
   font-size: 0.7rem;
   z-index: 26;
@@ -1547,8 +1555,11 @@ body.map-mode .zoom-indicator {
     padding: 2px 6px;
   }
   body.map-mode .mode-panel {
-    bottom: 12px;
-    right: 8px;
+    left: 80%;
+    top: 58%;
+    right: auto;
+    bottom: auto;
+    transform: translate(-50%, -50%);
     padding: 4px;
     gap: 4px;
   }
@@ -1563,8 +1574,10 @@ body.map-mode .zoom-indicator {
     font-size: 0.4rem;
   }
   body.map-mode .abilities-panel {
-    bottom: 12px;
-    left: 8px;
+    left: 50%;
+    top: 70%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
     padding: 4px;
   }
   body.map-mode .ability-btn {
@@ -1572,7 +1585,10 @@ body.map-mode .zoom-indicator {
     height: 34px;
   }
   body.map-mode .zoom-controls {
-    right: 8px;
+    left: 20%;
+    top: 58%;
+    right: auto;
+    transform: translate(-50%, -50%);
     padding: 3px;
     gap: 3px;
   }
@@ -1602,7 +1618,10 @@ body.map-mode .zoom-indicator {
     font-size: 0.8rem;
   }
   body.map-mode .zoom-indicator {
-    bottom: 60px;
+    top: 64%;
+    left: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
     font-size: 0.55rem;
   }
 }
@@ -1611,4 +1630,146 @@ body.map-mode .zoom-indicator {
   .theme-presets .preset-buttons {
     grid-template-columns: 1fr 1fr;
   }
+} 
+
+/* МОДАЛКА С ПАРОЛЕМ  */
+.diff-btn-secret {
+  margin-left: 16px;
+  background: rgba(255, 47, 110, 0.08);
+  border-color: rgba(255, 47, 110, 0.3);
+}
+.diff-btn-secret.active {
+  border-color: #ff2f6e;
+  color: #ff2f6e;
+  box-shadow: 0 0 20px rgba(255, 47, 110, 0.4);
+} 
+
+.password-gate-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  backdrop-filter: blur(6px);
+}
+.password-gate-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.password-gate-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: linear-gradient(135deg, #0a0a12, #1a0a12);
+  border: 1px solid rgba(255, 47, 110, 0.4);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  z-index: 1001;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 60px rgba(255, 47, 110, 0.2), 0 20px 60px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  min-width: 320px;
+}
+.password-gate-modal.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+.password-gate-icon {
+  font-size: 3.5rem;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 0 20px rgba(255, 47, 110, 0.4));
+}
+.password-gate-title {
+  color: #ff2f6e;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+  text-shadow: 0 0 20px rgba(255, 47, 110, 0.3);
+}
+.password-gate-subtitle {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+}
+.password-gate-input {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  font-size: 1.2rem;
+  font-family: 'Consolas', monospace;
+  color: #fff;
+  width: 100%;
+  max-width: 180px;
+  text-align: center;
+  letter-spacing: 8px;
+  transition: border-color 0.2s ease;
+  outline: none;
+}
+.password-gate-input:focus {
+  border-color: rgba(255, 47, 110, 0.6);
+  box-shadow: 0 0 20px rgba(255, 47, 110, 0.15);
+}
+.password-gate-error {
+  color: #ff2f6e;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  min-height: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.password-gate-error.show {
+  opacity: 1;
+}
+.password-gate-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+.password-gate-cancel,
+.password-gate-confirm {
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.6);
+}
+.password-gate-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.password-gate-confirm {
+  background: rgba(255, 47, 110, 0.15);
+  border-color: rgba(255, 47, 110, 0.3);
+  color: #ff2f6e;
+}
+.password-gate-confirm:hover {
+  background: rgba(255, 47, 110, 0.25);
+  border-color: rgba(255, 47, 110, 0.6);
+  box-shadow: 0 0 20px rgba(255, 47, 110, 0.15);
+}
+.password-gate-confirm:active {
+  transform: scale(0.95);
+} 
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-12px); }
+  40% { transform: translateX(12px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
 }
