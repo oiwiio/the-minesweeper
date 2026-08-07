@@ -17,6 +17,33 @@
     let timerStarted = false;
     let mode = 'reveal';         // 'reveal' или 'flag' — режим тапа (для мобильной панели)
 
+    // ===== ХАОС-РЕЖИМ =====
+    let chaosMode = false;
+    let chaosScore = 0;
+    let chaosCombo = 0;
+    let chaosLastDefuseAt = 0;
+    let chaosNextShiftAt = 0;
+    let chaosGlitchTimeoutId = null;
+
+    const CHAOS_SHIFT_STEP = 150;      // очков между событиями смены поля
+    const CHAOS_BASE_POINTS = 10;
+    const CHAOS_COMBO_WINDOW_MS = 4500; // сколько есть времени на следующую находку, чтобы комбо не сбросилось
+    const CHAOS_COMBO_CAP = 8;
+
+    const CHAOS_PHRASES = {
+      shuffle: ['Мины расползаются…', 'Кто-то перетасовал карты', 'Всё, что ты запомнил — уже не так', 'Земля поехала под ногами'],
+      spin: ['Поле крутит и колбасит', 'Держись — сейчас перевернёт', 'Верх и низ поменялись местами', 'Голова кругом'],
+      regen: ['Всё стёрто. Начинаем заново', 'Карта переписана с нуля', 'Прежнее поле больше не существует', 'Чистый лист — и снова в бой'],
+    };
+
+    const chaosHudEl = document.getElementById('chaosHud');
+    const chaosScoreValueEl = document.getElementById('chaosScoreValue');
+    const chaosComboBoxEl = document.getElementById('chaosComboBox');
+    const chaosComboValueEl = document.getElementById('chaosComboValue');
+    const chaosLogEl = document.getElementById('chaosLog');
+    const chaosTypewriterEl = document.getElementById('chaosTypewriter');
+    let chaosTypewriterTimeoutId = null;
+
     // ЗВУК
     const SOUND_STORAGE_KEY = 'minesweeper_sound';
     let soundEnabled = true;
@@ -194,14 +221,18 @@ const boardViewport = document.getElementById('boardViewport');
             number: 0,
             revealed: false,
             flagged: false,
+            defused: false,
             exists: true
           });
         }
         newBoard.push(row);
       }
 
-      // Случайная "нестандартная" форма — теперь для всех размеров поля.
-      applyRandomShape(newBoard);
+      // Хаос-режим — всегда полный квадрат, без "дырявой" формы.
+      // Случайная "нестандартная" форма — для всех остальных размеров поля.
+      if (!chaosMode) {
+        applyRandomShape(newBoard);
+      }
 
       return newBoard;
     }
@@ -358,6 +389,10 @@ function placeMines(firstR, firstC) {
     }
 
     // Вычисляем числа
+    recomputeAllNumbers();
+}
+
+function recomputeAllNumbers() {
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
             if (!board[r][c].exists || board[r][c].mine) continue;
@@ -371,6 +406,276 @@ function placeMines(firstR, firstC) {
             }
             board[r][c].number = count;
         }
+    }
+}
+
+// ХАОС-РЕЖИМ: логика 
+
+function resetChaosState() {
+    chaosScore = 0;
+    chaosCombo = 0;
+    chaosLastDefuseAt = 0;
+    chaosNextShiftAt = CHAOS_SHIFT_STEP;
+    updateChaosHUD();
+    chaosLogEl.classList.remove('show');
+    stopChaosGlitchLoop();
+    if (chaosMode) startChaosGlitchLoop();
+}
+
+function updateChaosHUD() {
+    chaosScoreValueEl.textContent = chaosScore;
+    chaosComboValueEl.textContent = '×' + (1 + chaosCombo * 0.5).toFixed(1).replace(/\.0$/, '');
+}
+
+function logChaosEvent(type) {
+    const pool = CHAOS_PHRASES[type];
+    if (!pool) return;
+    const phrase = pool[Math.floor(Math.random() * pool.length)];
+    chaosLogEl.textContent = phrase;
+    chaosLogEl.classList.remove('show');
+    void chaosLogEl.offsetWidth; // форсируем reflow, чтобы анимация перезапустилась
+    chaosLogEl.classList.add('show');
+}
+
+// Крупное уведомление вверху экрана с эффектом печатной машинки:
+// печатает фразу по букве, держит, потом стирает по букве обратно.
+// Не привязано к размеру поля — фиксированная позиция, всегда видно.
+function chaosTypewriterAnnounce(text) {
+    if (chaosTypewriterTimeoutId) {
+        clearTimeout(chaosTypewriterTimeoutId);
+        chaosTypewriterTimeoutId = null;
+    }
+
+    const TYPE_SPEED = 45;
+    const ERASE_SPEED = 25;
+    const HOLD_TIME = 1100;
+    let i = 0;
+
+    chaosTypewriterEl.classList.add('show');
+
+    function typeStep() {
+        if (i <= text.length) {
+            chaosTypewriterEl.textContent = text.slice(0, i) + (i < text.length ? '▌' : '|');
+            i++;
+            chaosTypewriterTimeoutId = setTimeout(typeStep, TYPE_SPEED);
+        } else {
+            chaosTypewriterTimeoutId = setTimeout(eraseStep, HOLD_TIME);
+        }
+    }
+
+    function eraseStep() {
+        if (i > 0) {
+            i--;
+            chaosTypewriterEl.textContent = text.slice(0, i) + (i > 0 ? '▌' : '');
+            chaosTypewriterTimeoutId = setTimeout(eraseStep, ERASE_SPEED);
+        } else {
+            chaosTypewriterEl.classList.remove('show');
+            chaosTypewriterEl.textContent = '';
+            chaosTypewriterTimeoutId = null;
+        }
+    }
+
+    typeStep();
+}
+
+// Обезвредил мину — начисляем очки с учётом серии находок подряд:
+// чем быстрее находишь следующую (в пределах CHAOS_COMBO_WINDOW_MS),
+// тем выше множитель. Долгая пауза или промах — комбо сгорает.
+function awardChaosPoints() {
+    const now = Date.now();
+    if (now - chaosLastDefuseAt <= CHAOS_COMBO_WINDOW_MS) {
+        chaosCombo = Math.min(CHAOS_COMBO_CAP, chaosCombo + 1);
+    } else {
+        chaosCombo = 1;
+    }
+    chaosLastDefuseAt = now;
+
+    const multiplier = 1 + chaosCombo * 0.5;
+    const points = Math.round(CHAOS_BASE_POINTS * multiplier);
+    chaosScore += points;
+    updateChaosHUD();
+
+    chaosComboBoxEl.classList.remove('combo-pop');
+    void chaosComboBoxEl.offsetWidth;
+    chaosComboBoxEl.classList.add('combo-pop');
+
+    maybeTriggerChaosShift();
+    return points;
+}
+
+function breakChaosCombo() {
+    chaosCombo = 0;
+    updateChaosHUD();
+}
+
+function maybeTriggerChaosShift() {
+    if (chaosScore < chaosNextShiftAt) return;
+    chaosNextShiftAt += CHAOS_SHIFT_STEP;
+    const events = ['shuffle', 'spin', 'regen'];
+    const type = events[Math.floor(Math.random() * events.length)];
+    triggerChaosShift(type);
+}
+
+function triggerChaosShift(type) {
+    chaosGlitchBurst();
+    setTimeout(() => {
+        if (type === 'shuffle') chaosShuffleMines();
+        else if (type === 'spin') chaosSpinBoard();
+        else chaosRegenBoard();
+    }, 260);
+}
+
+// Перемешивает мины среди клеток, которые ещё не открыты и не обезврежены —
+// уже решённое не трогаем, честность сохраняем. Числа на всех клетках
+// (включая уже открытые) пересчитываются заново — это осознанная "фича"
+// хаос-режима: даже то, что ты уже знал, может перестать быть правдой.
+function chaosShuffleMines() {
+    const movable = [];
+    const targets = [];
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = board[r][c];
+            if (!cell.exists || cell.revealed || cell.defused) continue;
+            targets.push({ r, c });
+            if (cell.mine) movable.push({ r, c });
+        }
+    }
+    movable.forEach((p) => { board[p.r][p.c].mine = false; });
+    shuffleArray(targets);
+    let toPlace = movable.length;
+    for (const pos of targets) {
+        if (toPlace <= 0) break;
+        if (board[pos.r][pos.c].mine) continue;
+        board[pos.r][pos.c].mine = true;
+        toPlace--;
+    }
+    recomputeAllNumbers();
+    renderBoard();
+    updateMinimap();
+    chaosTypewriterAnnounce(CHAOS_PHRASES.shuffle[Math.floor(Math.random() * CHAOS_PHRASES.shuffle.length)]);
+}
+
+function rotateBoard90(oldBoard, oldRows, oldCols) {
+    const newBoard = Array.from({ length: oldCols }, () => new Array(oldRows));
+    for (let r = 0; r < oldRows; r++) {
+        for (let c = 0; c < oldCols; c++) newBoard[c][oldRows - 1 - r] = oldBoard[r][c];
+    }
+    return newBoard;
+}
+function rotateBoard270(oldBoard, oldRows, oldCols) {
+    const newBoard = Array.from({ length: oldCols }, () => new Array(oldRows));
+    for (let r = 0; r < oldRows; r++) {
+        for (let c = 0; c < oldCols; c++) newBoard[oldCols - 1 - c][r] = oldBoard[r][c];
+    }
+    return newBoard;
+}
+function rotateBoard180(oldBoard, oldRows, oldCols) {
+    const newBoard = Array.from({ length: oldRows }, () => new Array(oldCols));
+    for (let r = 0; r < oldRows; r++) {
+        for (let c = 0; c < oldCols; c++) newBoard[oldRows - 1 - r][oldCols - 1 - c] = oldBoard[r][c];
+    }
+    return newBoard;
+}
+function flipBoardHorizontal(oldBoard, rows, cols) {
+    return Array.from({ length: rows }, (_, r) => {
+        const row = new Array(cols);
+        for (let c = 0; c < cols; c++) row[c] = oldBoard[r][cols - 1 - c];
+        return row;
+    });
+}
+
+// Крутит и/или зеркалит поле целиком как единый блок — логика не ломается
+// (это просто смена координат), но мысленная карта игрока уезжает в сторону.
+function chaosSpinBoard() {
+    boardEl.classList.add('chaos-spin');
+    setTimeout(() => boardEl.classList.remove('chaos-spin'), 700);
+
+    const rotations = [90, 180, 270];
+    const angle = rotations[Math.floor(Math.random() * rotations.length)];
+
+    let newBoard;
+    if (angle === 90) newBoard = rotateBoard90(board, ROWS, COLS);
+    else if (angle === 270) newBoard = rotateBoard270(board, ROWS, COLS);
+    else newBoard = rotateBoard180(board, ROWS, COLS);
+
+    if (angle === 90 || angle === 270) {
+        const tmp = ROWS; ROWS = COLS; COLS = tmp;
+    }
+
+    if (Math.random() < 0.5) newBoard = flipBoardHorizontal(newBoard, ROWS, COLS);
+
+    board = newBoard;
+    if (mapModeActive) {
+        applyMapBoardSizing();
+        setTimeout(fitMapToView, 50);
+    } else {
+        applyBoardSizing();
+    }
+    renderBoard();
+    updateMinimap();
+    logChaosEvent('spin');
+}
+
+// Полностью новое поле с нуля — очки и комбо остаются, прогресс на поле нет.
+function chaosRegenBoard() {
+    board = createEmptyBoard();
+    const cr = Math.floor(ROWS / 2);
+    const cc = Math.floor(COLS / 2);
+    placeMines(cr, cc);
+    firstClick = false;
+    revealedCount = 0;
+    flagCount = 0;
+    renderBoard();
+    updateMineCounter();
+    updateMinimap();
+    chaosTypewriterAnnounce(CHAOS_PHRASES.regen[Math.floor(Math.random() * CHAOS_PHRASES.regen.length)]);
+}
+
+// Косметические глитчи — ничего не меняют по факту, только сбивают с толку.
+function chaosGlitchBurst() {
+    boardEl.classList.add('chaos-glitching');
+    setTimeout(() => boardEl.classList.remove('chaos-glitching'), 450);
+
+    const revealedCells = [];
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = board[r][c];
+            if (cell.exists && cell.revealed && !cell.mine && cell.number > 0) revealedCells.push({ r, c });
+        }
+    }
+    shuffleArray(revealedCells);
+    const flickerCount = Math.min(4, revealedCells.length);
+    for (let i = 0; i < flickerCount; i++) {
+        const { r, c } = revealedCells[i];
+        const idx = r * COLS + c;
+        const el = boardEl.children[idx];
+        if (!el) continue;
+        const fakeNum = 1 + Math.floor(Math.random() * 8);
+        el.textContent = fakeNum;
+        el.dataset.number = fakeNum;
+        el.classList.add('chaos-flicker');
+        setTimeout(() => {
+            updateCellElement(r, c);
+        }, 220 + Math.random() * 180);
+    }
+}
+
+function startChaosGlitchLoop() {
+    stopChaosGlitchLoop();
+    const schedule = () => {
+        const delay = 7000 + Math.random() * 8000;
+        chaosGlitchTimeoutId = setTimeout(() => {
+            if (chaosMode && gameActive && !gameOver) chaosGlitchBurst();
+            schedule();
+        }, delay);
+    };
+    schedule();
+}
+
+function stopChaosGlitchLoop() {
+    if (chaosGlitchTimeoutId) {
+        clearTimeout(chaosGlitchTimeoutId);
+        chaosGlitchTimeoutId = null;
     }
 }
 
@@ -394,6 +699,9 @@ function placeMines(firstR, firstC) {
             div.classList.add('covered');
             if (cell.flagged) {
               div.classList.add('flagged');
+            }
+            if (cell.defused) {
+              div.classList.add('defused');
             }
           } else {
             if (cell.mine) {
@@ -432,6 +740,9 @@ function placeMines(firstR, firstC) {
         child.classList.add('covered');
         if (cell.flagged) {
           child.classList.add('flagged');
+        }
+        if (cell.defused) {
+          child.classList.add('defused');
         }
       } else {
         if (cell.mine) {
@@ -631,6 +942,13 @@ function placeMines(firstR, firstC) {
       setAbilityMode(null);
       if (sixthActive) stopSixthSense();
       updateAbilityUI();
+      if (chaosMode) {
+        stopChaosGlitchLoop();
+        chaosLogEl.textContent = `Забег окончен. Итог: ${chaosScore} очков`;
+        chaosLogEl.classList.remove('show');
+        void chaosLogEl.offsetWidth;
+        chaosLogEl.classList.add('show');
+      }
       playSound('lose');
       updateMinimap();
     }
@@ -694,7 +1012,9 @@ function placeMines(firstR, firstC) {
         waveDuration = revealEmptyCells(r, c);
       }
 
-      checkWinAndCelebrate(waveDuration);
+      if (!chaosMode) {
+        checkWinAndCelebrate(waveDuration);
+      }
       updateMinimap();
     }
 
@@ -775,10 +1095,33 @@ function placeMines(firstR, firstC) {
     function toggleFlag(r, c) {
       const cell = board[r][c];
       if (!cell.exists || cell.revealed) return;
+      if (cell.defused) return; // обезвреженное в хаос-режиме — уже не тронуть
 
       if (!cell.flagged) {
         cell.flagged = true;
         flagCount++;
+
+        if (chaosMode && cell.mine) {
+          cell.defused = true;
+          awardChaosPoints();
+          updateCellElement(r, c);
+          const idx = r * COLS + c;
+          const el = boardEl.children[idx];
+          if (el) {
+            el.classList.add('defuse-pop');
+            el.addEventListener('animationend', () => el.classList.remove('defuse-pop'), { once: true });
+          }
+          playSound('flag');
+          vibrate([15, 20, 15]);
+          updateMineCounter();
+          updateMinimap();
+          return;
+        }
+
+        if (chaosMode && !cell.mine) {
+          breakChaosCombo();
+        }
+
         playSound('flag');
       } else {
         cell.flagged = false;
@@ -1235,6 +1578,9 @@ function setDifficulty(rows, cols, mines, btn) {
         exitMapMode();
     }
     
+    chaosMode = !!(btn && btn.dataset.chaos === 'true');
+    document.body.classList.toggle('chaos-mode', chaosMode);
+
     ROWS = rows;
     COLS = cols;
     TOTAL_MINES = mines;
@@ -1244,6 +1590,7 @@ function setDifficulty(rows, cols, mines, btn) {
         b.classList.toggle('active', isActive);
         b.setAttribute('aria-pressed', String(isActive));
     });
+    resetChaosState();
     resetGame();
     
     // Если у кнопки стоит data-fullscreen — автоматически включаем map-режим
@@ -1305,6 +1652,10 @@ function resetGame() {
 
     resizeMinimap();
     updateMinimap();
+
+    if (chaosMode) {
+        resetChaosState();
+    }
 }
     // ТЕМА (фон + 2 акцента, настраивается пользователем)
     function applyTheme(theme) {
@@ -1622,7 +1973,14 @@ function resetGame() {
       document.getElementById('passwordGateInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') confirmPassword();
         if (e.key === 'Escape') hidePasswordGate();
-      });     
+      });
+      document.querySelectorAll('.password-gate-key').forEach((keyBtn) => {
+        keyBtn.addEventListener('click', () => {
+          const input = document.getElementById('passwordGateInput');
+          input.value += keyBtn.dataset.digit;
+          input.focus();
+        });
+      });
 
     // Инициализация картографического режима
     zoomInBtn.addEventListener('click', zoomIn);

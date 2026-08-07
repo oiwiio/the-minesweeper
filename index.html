@@ -18,11 +18,16 @@
     <div class="smiley" id="resetButton">😊</div>
     <div class="mine-counter" id="timerDisplay">000</div>
   </div>
+  <div class="chaos-hud" id="chaosHud">
+    <div class="chaos-hud-score"><span id="chaosScoreValue">0</span><span class="chaos-hud-label">очков</span></div>
+    <div class="chaos-hud-combo" id="chaosComboBox"><span id="chaosComboValue">×1</span><span class="chaos-hud-label">комбо</span></div>
+  </div>
+  <div class="chaos-log" id="chaosLog"></div>
   <div class="difficulty-panel">
     <button class="diff-btn active" data-rows="12" data-cols="12" data-mines="25" data-fullscreen="true" type="button" aria-pressed="true">12×12</button>
     <button class="diff-btn" data-rows="24" data-cols="24" data-mines="99" type="button" aria-pressed="false">24×24</button>
     <button class="diff-btn" data-rows="64" data-cols="64" data-mines="704" data-fullscreen="true" type="button" aria-pressed="false">64×64</button>
-    <button class="diff-btn diff-btn-secret" data-rows="32" data-cols="32" data-mines="175" data-fullscreen="true" data-locked="true" type="button" aria-pressed="false" aria-label="Скрытый режим (в разработке)" title="???">💀</button>
+    <button class="diff-btn diff-btn-secret" data-rows="32" data-cols="32" data-mines="175" data-fullscreen="true" data-locked="true" data-chaos="true" type="button" aria-pressed="false" aria-label="Скрытый режим (в разработке)" title="???">💀</button>
   </div>
   <div class="play-area">
     <div class="board-viewport" id="boardViewport">
@@ -73,6 +78,8 @@
   </div>
   <div class="footer"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg> <span>режим</span> задаёт тап по клетке · на ПК <span>ПКМ</span> — всегда флаг · тап по открытой цифре с нужным числом флагов вокруг — <span>чординг</span></div>
 </div>
+  <div class="chaos-typewriter" id="chaosTypewriter"></div>
+
   <button class="floating-reset" id="floatingReset" type="button" aria-label="Начать заново"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
 
   <button class="theme-toggle" id="themeToggle" type="button" aria-label="Настройки темы"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></svg></button>
@@ -144,6 +151,11 @@
     <div class="password-gate-title">ОПАСНО</div>
     <div class="password-gate-subtitle">ВВЕДИТЕ ПАРОЛЬ</div>
     <input class="password-gate-input" id="passwordGateInput" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" aria-label="Пароль">
+    <div class="password-gate-keypad">
+      <button class="password-gate-key" data-digit="1" type="button" aria-label="1">1</button>
+      <button class="password-gate-key" data-digit="2" type="button" aria-label="2">2</button>
+      <button class="password-gate-key" data-digit="3" type="button" aria-label="3">3</button>
+    </div>
     <div class="password-gate-error" id="passwordGateError">Неверный пароль</div>
     <div class="password-gate-buttons">
       <button class="password-gate-cancel" id="passwordGateCancel" type="button">Отмена</button>
@@ -157,20 +169,6 @@
     <button class="zoom-btn" id="zoomOut" type="button" aria-label="Отдалить">−</button>
     <button class="zoom-btn" id="zoomReset" type="button" aria-label="Сбросить масштаб">⟲</button>
   </div>
-
-  <!-- модалка пароля  -->
-  <div class="password-gate-backdrop" id="passwordGateBackdrop"></div>
-<div class="password-gate-modal" id="passwordGateModal" role="dialog" aria-hidden="true">
-  <div class="password-gate-icon">☠</div>
-  <div class="password-gate-title">ОПАСНО</div>
-  <div class="password-gate-subtitle">ВВЕДИТЕ ПАРОЛЬ</div>
-  <input class="password-gate-input" id="passwordGateInput" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" aria-label="Пароль">
-  <div class="password-gate-error" id="passwordGateError">Неверный пароль</div>
-  <div class="password-gate-buttons">
-    <button class="password-gate-cancel" id="passwordGateCancel" type="button">Отмена</button>
-    <button class="password-gate-confirm" id="passwordGateConfirm" type="button">Войти</button>
-  </div>
-</div>
 
   <script src="./script.js"> </script>
 </body>

@@ -412,6 +412,148 @@ body.win::after {
   color: var(--accent-1);
   box-shadow: 0 0 8px color-mix(in srgb, var(--accent-1) 30%, transparent), inset 0 0 8px color-mix(in srgb, var(--accent-1) 8%, transparent);
 }
+
+/* ХАОС-РЕЖИМ */
+
+/* HUD со счётом и комбо — виден только в хаос-режиме */
+.chaos-hud {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.7rem;
+  font-family: inherit;
+}
+body.chaos-mode .chaos-hud {
+  display: flex;
+}
+.chaos-hud-score,
+.chaos-hud-combo {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  padding: 0.3rem 1rem;
+}
+.chaos-hud-score #chaosScoreValue {
+  color: #ff5566;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.chaos-hud-combo #chaosComboValue {
+  color: var(--accent-1);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.chaos-hud-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 0.4px;
+}
+.chaos-hud-combo.combo-pop {
+  animation: chaosComboPop 0.35s ease;
+}
+@keyframes chaosComboPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* Плашка-лог с короткими фразами по ходу хаос-событий */
+.chaos-log {
+  min-height: 1.1em;
+  margin-bottom: 0.4rem;
+  text-align: center;
+  font-size: 0.75rem;
+  letter-spacing: 0.3px;
+  color: #ff5566;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.chaos-log.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Крупное уведомление-"печатная машинка" вверху экрана — не привязано
+   к игровому полю (fixed относительно viewport), для полного сброса
+   поля и перемешивания мин в хаос-режиме. */
+.chaos-typewriter {
+  position: fixed;
+  top: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-weight: 700;
+  font-size: clamp(1.05rem, 4vw, 1.9rem);
+  letter-spacing: 0.5px;
+  color: #ff5566;
+  text-shadow: 0 0 14px rgba(255, 47, 110, 0.65), 0 0 30px rgba(255, 47, 110, 0.35);
+  text-align: center;
+  white-space: nowrap;
+  max-width: 92vw;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.chaos-typewriter.show {
+  opacity: 1;
+}
+
+/* Обезвреженная мина — фиксированный "успешный" цвет (не тема), чтобы
+   всегда однозначно читалось "эта клетка больше не опасна" */
+.cell.defused {
+  position: relative;
+  background: var(--surface-4);
+}
+.cell.defused::before {
+  content: "✓";
+  font-size: 1.1em;
+  line-height: 1;
+  font-weight: 700;
+  color: #35ff9e;
+  text-shadow: 0 0 8px #35ff9e, 0 0 18px rgba(53, 255, 158, 0.7);
+}
+.cell.defuse-pop {
+  animation: chaosDefusePop 0.45s ease;
+}
+@keyframes chaosDefusePop {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(53, 255, 158, 0); }
+  35% { transform: scale(1.35); box-shadow: 0 0 22px rgba(53, 255, 158, 0.9); }
+  100% { transform: scale(1); box-shadow: 0 0 0 rgba(53, 255, 158, 0); }
+}
+
+/* "Раскрутка" поля перед сменой раскладки */
+.board.chaos-spin {
+  animation: chaosSpin 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes chaosSpin {
+  0% { transform: rotate(0deg) scale(1); filter: blur(0); }
+  45% { transform: rotate(200deg) scale(0.92); filter: blur(1.5px); }
+  100% { transform: rotate(360deg) scale(1); filter: blur(0); }
+}
+
+/* Косметические глитчи — ничего не меняют по факту, только сбивают с толку */
+.board.chaos-glitching {
+  animation: chaosGlitchShake 0.45s ease;
+}
+@keyframes chaosGlitchShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-2px, 1px); }
+  40% { transform: translate(2px, -1px); }
+  60% { transform: translate(-1px, -1px); filter: hue-rotate(20deg); }
+  80% { transform: translate(1px, 1px); }
+}
+.cell.chaos-flicker {
+  color: #ff2f6e !important;
+  text-shadow: 0 0 8px #ff2f6e !important;
+}
+
 .play-area {
   display: flex;
   align-items: center;
@@ -1719,6 +1861,35 @@ body.map-mode .zoom-indicator {
 .password-gate-input:focus {
   border-color: rgba(255, 47, 110, 0.6);
   box-shadow: 0 0 20px rgba(255, 47, 110, 0.15);
+}
+.password-gate-keypad {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+.password-gate-key {
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 47, 110, 0.35);
+  color: #ff5566;
+  font-family: 'Consolas', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.password-gate-key:hover {
+  border-color: #ff2f6e;
+  box-shadow: 0 0 14px rgba(255, 47, 110, 0.35);
+  color: #fff;
+}
+.password-gate-key:active {
+  transform: scale(0.92);
+  background: rgba(255, 47, 110, 0.25);
 }
 .password-gate-error {
   color: #ff2f6e;
