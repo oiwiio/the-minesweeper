@@ -1358,6 +1358,19 @@ body.map-mode .board {
   animation: none;
   will-change: transform;
 }
+/* На время входа в fullscreen включаем плавный переход трансформации —
+   иначе рывок между "100%" и вписанным масштабом. После входа класс
+   снимается через JS, чтобы панорамирование/зум мышью остались мгновенными. */
+body.map-mode .board.map-entering {
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+body.map-mode .board-viewport {
+  animation: mapViewportFadeIn 0.25s ease;
+}
+@keyframes mapViewportFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 body.map-mode .board .cell {
   border-radius: 1px;

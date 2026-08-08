@@ -17,7 +17,7 @@
     let timerStarted = false;
     let mode = 'reveal';         // 'reveal' или 'flag' — режим тапа (для мобильной панели)
 
-    // ===== ХАОС-РЕЖИМ =====
+    // ХАОС-РЕЖИМ 
     let chaosMode = false;
     let chaosScore = 0;
     let chaosCombo = 0;
@@ -692,7 +692,6 @@ function chaosSpinBoard() {
     board = newBoard;
     if (mapModeActive) {
         applyMapBoardSizing();
-        setTimeout(fitMapToView, 50);
     } else {
         applyBoardSizing();
     }
@@ -1719,7 +1718,6 @@ function resetGame() {
 
     if (wasMapMode) {
         applyMapBoardSizing();
-        setTimeout(fitMapToView, 50);
     } else {
         applyBoardSizing();
     }
@@ -2118,14 +2116,13 @@ function resetGame() {
     boardEl.style.setProperty('--rows', ROWS);
     boardEl.style.setProperty('--cell-size', size + 'px');
     
-    // Сбрасываем позицию при первом открытии
+    // Считаем и сразу применяем финальный (вписанный в экран) масштаб —
+    // без промежуточного кадра на 100%, который раньше давал заметный скачок.
     if (!mapIsDragging) {
-        mapPanX = 0;
-        mapPanY = 0;
-        mapScale = 1;
-        mapInitialScale = 1;
+        fitMapToView();
+    } else {
+        updateMapTransform();
     }
-    updateMapTransform();
   }
 
   function updateMapTransform() {
@@ -2165,12 +2162,22 @@ function resetGame() {
     mapModeActive = true;
     document.body.classList.add('map-mode');
     zoomControls.style.display = 'flex';
-    
+
+    // Стартовая точка — "как в карточке" (100%, без смещения). Форсируем
+    // reflow, чтобы браузер зафиксировал это состояние ДО того, как мы
+    // применим финальный (вписанный) масштаб — тогда переход анимируется
+    // плавным зумом, а не прыгает скачком.
+    boardEl.style.transformOrigin = '0 0';
+    boardEl.style.transform = 'translate(0px, 0px) scale(1)';
+    void boardEl.offsetWidth;
+
+    boardEl.classList.add('map-entering');
     applyMapBoardSizing();
-    setTimeout(fitMapToView, 50);
-    
+
     // Переключаем режим на reveal для удобства
     setMode('reveal');
+
+    setTimeout(() => boardEl.classList.remove('map-entering'), 420);
   }
 
   function exitMapMode() {
