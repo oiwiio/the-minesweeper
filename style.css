@@ -684,6 +684,46 @@ body.chaos-mode .chaos-hud {
   color: var(--text-muted);
 }
 
+/* "Минута спокойствия" — щит, доступен только в хаос-режиме */
+.ability-btn-shield {
+  display: none;
+}
+body.chaos-mode .ability-btn-shield {
+  display: flex;
+}
+.ability-btn-shield.depleted {
+  opacity: 0.5;
+}
+.ability-btn-shield.depleted .ability-charge {
+  background: var(--border-cell);
+  color: var(--text-muted);
+}
+.ability-cooldown-bar {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 4px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border-cell);
+  overflow: hidden;
+}
+.ability-cooldown-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--accent-1);
+  transition: width 0.3s linear;
+}
+/* Короткая вспышка на поле в момент, когда щит гасит событие хаоса */
+.board.chaos-shield-block {
+  animation: chaosShieldFlash 0.5s ease-out;
+}
+@keyframes chaosShieldFlash {
+  0% { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--accent-1) 90%, transparent), 0 0 40px color-mix(in srgb, var(--accent-1) 60%, transparent); }
+  100% { box-shadow: inset 0 0 0 0px transparent, 0 0 0px transparent; }
+}
+
 /* Плашка-подсказка с названием и описанием — только на устройствах
    с настоящим hover, чтобы на тачскрине не мешала тапу по кнопке */
 .ability-tooltip {

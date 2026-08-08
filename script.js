@@ -30,6 +30,20 @@
     const CHAOS_COMBO_WINDOW_MS = 4500; // сколько есть времени на следующую находку, чтобы комбо не сбросилось
     const CHAOS_COMBO_CAP = 8;
 
+    // "Минута спокойствия" — щит, гасит случайные события хаоса вместо их срабатывания.
+    // Не разовая способность, а счётчик зарядов с перезарядкой по времени.
+    const SHIELD_MAX_CHARGES = 2;
+    const SHIELD_COOLDOWN_MS = 40000; // 40 секунд на восстановление одного заряда
+    const SHIELD_PHRASES = ['Хаос отражён…', 'Не в этот раз', 'Поле держит удар', 'Тишина — и снова тишина'];
+    let shieldCharges = 1; // старт с одним зарядом из максимум SHIELD_MAX_CHARGES
+    let shieldCooldownTimeoutId = null;
+    let shieldCooldownIntervalId = null;
+    let shieldCooldownStartedAt = 0;
+
+    const shieldBtn = document.getElementById('abilityShield');
+    const shieldChargeEl = document.getElementById('shieldCharge');
+    const shieldCooldownFillEl = document.getElementById('shieldCooldownFill');
+
     const CHAOS_PHRASES = {
       shuffle: ['Мины расползаются…', 'Кто-то перетасовал карты', 'Всё, что ты запомнил — уже не так', 'Земля поехала под ногами'],
       spin: ['Поле крутит и колбасит', 'Держись — сейчас перевернёт', 'Верх и низ поменялись местами', 'Голова кругом'],
@@ -420,6 +434,71 @@ function resetChaosState() {
     chaosLogEl.classList.remove('show');
     stopChaosGlitchLoop();
     if (chaosMode) startChaosGlitchLoop();
+
+    stopShieldRecharge();
+    shieldCharges = 1;
+    updateShieldUI();
+}
+
+// "МИНУТА СПОКОЙСТВИЯ" (щит от событий хаоса)
+
+function updateShieldUI() {
+    if (!shieldChargeEl) return;
+    shieldChargeEl.textContent = shieldCharges;
+    shieldBtn.classList.toggle('depleted', shieldCharges <= 0);
+    shieldBtn.setAttribute('aria-pressed', String(shieldCharges > 0));
+}
+
+function tickShieldCooldownFill() {
+    if (!shieldCooldownFillEl || !shieldCooldownStartedAt) return;
+    const elapsed = Date.now() - shieldCooldownStartedAt;
+    const pct = Math.min(100, (elapsed / SHIELD_COOLDOWN_MS) * 100);
+    shieldCooldownFillEl.style.width = pct + '%';
+}
+
+function stopShieldRecharge() {
+    if (shieldCooldownTimeoutId) {
+        clearTimeout(shieldCooldownTimeoutId);
+        shieldCooldownTimeoutId = null;
+    }
+    if (shieldCooldownIntervalId) {
+        clearInterval(shieldCooldownIntervalId);
+        shieldCooldownIntervalId = null;
+    }
+    shieldCooldownStartedAt = 0;
+    if (shieldCooldownFillEl) shieldCooldownFillEl.style.width = '0%';
+}
+
+// Заряд восстанавливается сам через SHIELD_COOLDOWN_MS — просто подожди.
+// Если зарядов уже максимум, перезарядка не запускается.
+function scheduleShieldRecharge() {
+    if (shieldCharges >= SHIELD_MAX_CHARGES) return;
+    if (shieldCooldownTimeoutId) return; // перезарядка уже идёт
+
+    shieldCooldownStartedAt = Date.now();
+    shieldCooldownIntervalId = setInterval(tickShieldCooldownFill, 200);
+    shieldCooldownTimeoutId = setTimeout(() => {
+        shieldCharges = Math.min(SHIELD_MAX_CHARGES, shieldCharges + 1);
+        stopShieldRecharge();
+        updateShieldUI();
+        // если всё ещё не полный — сразу запускаем следующий цикл перезарядки
+        scheduleShieldRecharge();
+    }, SHIELD_COOLDOWN_MS);
+}
+
+// Вызывается вместо triggerChaosShift, когда есть заряд щита: событие гасится,
+// заряд списывается, стартует перезарядка, показывается обратная связь.
+function chaosShieldBlock() {
+    shieldCharges--;
+    updateShieldUI();
+    scheduleShieldRecharge();
+
+    boardEl.classList.remove('chaos-shield-block');
+    void boardEl.offsetWidth; // форсируем reflow, чтобы анимация перезапустилась
+    boardEl.classList.add('chaos-shield-block');
+    setTimeout(() => boardEl.classList.remove('chaos-shield-block'), 500);
+
+    chaosTypewriterAnnounce(SHIELD_PHRASES[Math.floor(Math.random() * SHIELD_PHRASES.length)]);
 }
 
 function updateChaosHUD() {
@@ -511,6 +590,12 @@ function breakChaosCombo() {
 function maybeTriggerChaosShift() {
     if (chaosScore < chaosNextShiftAt) return;
     chaosNextShiftAt += CHAOS_SHIFT_STEP;
+
+    if (shieldCharges > 0) {
+        chaosShieldBlock();
+        return;
+    }
+
     const events = ['shuffle', 'spin', 'regen'];
     const type = events[Math.floor(Math.random() * events.length)];
     triggerChaosShift(type);
@@ -1254,6 +1339,7 @@ function stopChaosGlitchLoop() {
       radarBtn.setAttribute('aria-pressed', String(abilityMode === 'radar'));
       updateSixthUI();
       updateEchoUI();
+      updateShieldUI();
     }
 
     function setAbilityMode(newMode) {
@@ -1859,6 +1945,16 @@ function resetGame() {
       });
       echoBtn.addEventListener('click', () => {
         useEcholot();
+      });
+      shieldBtn.addEventListener('click', () => {
+        if (shieldCharges > 0) {
+          abilityHintEl.textContent = `Щит активен — заряды: ${shieldCharges}/${SHIELD_MAX_CHARGES}`;
+        } else {
+          abilityHintEl.textContent = 'Щит перезаряжается…';
+        }
+        setTimeout(() => {
+          if (abilityHintEl.textContent.startsWith('Щит')) abilityHintEl.textContent = '';
+        }, 2000);
       });
       updateAbilityUI();
       setMode('reveal');
