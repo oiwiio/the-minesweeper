@@ -116,6 +116,9 @@
     let mapTouchStartDist = 0;
     let mapTouchStartScale = 1;
     let mapInitialScale = 1;
+    const MAP_DRAG_THRESHOLD = 5; // px — меньше этого считаем тапом, а не перетаскиванием
+    let mapDragMoved = false;     // было ли реальное смещение во время текущего перетаскивания
+    let justDraggedMap = false;   // гасит следующий click по клетке сразу после перетаскивания
 
 const zoomControls = document.getElementById('zoomControls');
 const zoomInBtn = document.getElementById('zoomIn');
@@ -1139,6 +1142,13 @@ function stopChaosGlitchLoop() {
 
     function onCellClick(e) {
       e.preventDefault();
+
+      if (justDraggedMap) {
+        // Это не тап, а конец перетаскивания карты — клетку не открываем.
+        justDraggedMap = false;
+        return;
+      }
+
       const div = e.currentTarget;
       const r = parseInt(div.dataset.r);
       const c = parseInt(div.dataset.c);
@@ -2206,6 +2216,7 @@ function resetGame() {
     boardViewport.addEventListener('mousedown', (e) => {
         if (!mapModeActive || e.button !== 0) return;
         mapIsDragging = true;
+        mapDragMoved = false;
         mapDragStartX = e.clientX;
         mapDragStartY = e.clientY;
         mapDragStartPanX = mapPanX;
@@ -2218,6 +2229,9 @@ function resetGame() {
         if (!mapIsDragging || !mapModeActive) return;
         const dx = e.clientX - mapDragStartX;
         const dy = e.clientY - mapDragStartY;
+        if (!mapDragMoved && Math.hypot(dx, dy) > MAP_DRAG_THRESHOLD) {
+            mapDragMoved = true;
+        }
         mapPanX = mapDragStartPanX + dx;
         mapPanY = mapDragStartPanY + dy;
         updateMapTransform();
@@ -2227,6 +2241,12 @@ function resetGame() {
         if (mapIsDragging) {
             mapIsDragging = false;
             boardViewport.style.cursor = 'grab';
+            if (mapDragMoved) {
+                // Было реальное перетаскивание — гасим клик по клетке,
+                // которая осталась под курсором в момент отпускания.
+                justDraggedMap = true;
+                setTimeout(() => { justDraggedMap = false; }, 0);
+            }
         }
     });
   }
@@ -2237,12 +2257,14 @@ function resetGame() {
     let touchStartPanX = 0, touchStartPanY = 0;
     let lastTouchDist = 0;
     let isTouchDragging = false;
+    let touchDragMoved = false;
     
     boardViewport.addEventListener('touchstart', (e) => {
         if (!mapModeActive) return;
         const touches = e.touches;
         if (touches.length === 1) {
             isTouchDragging = true;
+            touchDragMoved = false;
             touchStartX = touches[0].clientX;
             touchStartY = touches[0].clientY;
             touchStartPanX = mapPanX;
@@ -2264,6 +2286,9 @@ function resetGame() {
         if (touches.length === 1 && isTouchDragging) {
             const dx = touches[0].clientX - touchStartX;
             const dy = touches[0].clientY - touchStartY;
+            if (!touchDragMoved && Math.hypot(dx, dy) > MAP_DRAG_THRESHOLD) {
+                touchDragMoved = true;
+            }
             mapPanX = touchStartPanX + dx;
             mapPanY = touchStartPanY + dy;
             updateMapTransform();
@@ -2280,6 +2305,11 @@ function resetGame() {
     
     boardViewport.addEventListener('touchend', (e) => {
         isTouchDragging = false;
+        if (touchDragMoved) {
+            justDraggedMap = true;
+            setTimeout(() => { justDraggedMap = false; }, 0);
+        }
+        touchDragMoved = false;
     }, { passive: true });
   }
 
