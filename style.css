@@ -1107,6 +1107,114 @@ body.chaos-mode .ability-btn-shield {
   letter-spacing: 0.3px;
 }
 
+/* ЭКРАН ИТОГА ПАРТИИ */
+.results-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 75;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.results-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.results-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: min(320px, 88vw);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+  padding: 1.6rem 1.4rem 1.4rem;
+  transform: translate(-50%, -50%) scale(0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  font-family: inherit;
+  text-align: center;
+}
+.results-modal.open {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+.results-icon {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+.results-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #fff;
+}
+.results-modal.results-lose .results-title {
+  color: #ff5566;
+}
+.results-modal.results-win .results-title {
+  color: #35ff9e;
+}
+.results-modal.results-chaos .results-title {
+  color: #ff5566;
+}
+.results-stats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.results-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.4rem 0.7rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+.results-stat-label {
+  color: var(--text-muted);
+}
+.results-stat-value {
+  font-weight: 700;
+  color: var(--accent-1);
+}
+.results-modal.results-chaos .results-stat-value {
+  color: #ff5566;
+}
+.results-play-again {
+  margin-top: 0.3rem;
+  padding: 0.6rem 1.6rem;
+  border-radius: 20px;
+  border: 1px solid var(--accent-1);
+  background: color-mix(in srgb, var(--accent-1) 12%, var(--surface-2));
+  color: var(--accent-1);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.results-play-again:hover {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent-1) 40%, transparent);
+}
+.results-play-again:active {
+  transform: scale(0.95);
+}
+
 .sound-toggle {
   position: fixed;
   right: 1.1rem;

@@ -24,6 +24,9 @@
     let chaosLastDefuseAt = 0;
     let chaosNextShiftAt = 0;
     let chaosGlitchTimeoutId = null;
+    let chaosBestCombo = 0;       // для экрана итога — лучшая серия за забег
+    let chaosMinesDefused = 0;    // сколько мин обезврежено за забег
+    let chaosEventsSurvived = 0;  // сколько смен поля реально произошло (не заблокировано щитом)
 
     const CHAOS_SHIFT_STEP = 150;      // очков между событиями смены поля
     const CHAOS_BASE_POINTS = 10;
@@ -433,6 +436,9 @@ function resetChaosState() {
     chaosCombo = 0;
     chaosLastDefuseAt = 0;
     chaosNextShiftAt = CHAOS_SHIFT_STEP;
+    chaosBestCombo = 0;
+    chaosMinesDefused = 0;
+    chaosEventsSurvived = 0;
     updateChaosHUD();
     chaosLogEl.classList.remove('show');
     stopChaosGlitchLoop();
@@ -571,6 +577,8 @@ function awardChaosPoints() {
         chaosCombo = 1;
     }
     chaosLastDefuseAt = now;
+    chaosBestCombo = Math.max(chaosBestCombo, chaosCombo);
+    chaosMinesDefused++;
 
     const multiplier = 1 + chaosCombo * 0.5;
     const points = Math.round(CHAOS_BASE_POINTS * multiplier);
@@ -605,6 +613,7 @@ function maybeTriggerChaosShift() {
 }
 
 function triggerChaosShift(type) {
+    chaosEventsSurvived++;
     chaosGlitchBurst();
     setTimeout(() => {
         if (type === 'shuffle') chaosShuffleMines();
@@ -1038,6 +1047,7 @@ function stopChaosGlitchLoop() {
       }
       playSound('lose');
       updateMinimap();
+      setTimeout(() => showResults(chaosMode ? 'chaos' : 'lose'), 900);
     }
 
     function checkWinAndCelebrate(waveDuration) {
@@ -1068,6 +1078,7 @@ function stopChaosGlitchLoop() {
         spawnConfetti();
         vibrate([30, 40, 30, 40, 70]);
         playSound('win');
+        setTimeout(() => showResults('win'), 900);
       }, waveDuration);
     }
 
@@ -1336,6 +1347,96 @@ function stopChaosGlitchLoop() {
       minimapModalEl.classList.remove('open');
       minimapBackdropEl.classList.remove('open');
       minimapModalEl.setAttribute('aria-hidden', 'true');
+    }
+
+    // ЭКРАН ИТОГА ПАРТИИ
+    const resultsBackdropEl = document.getElementById('resultsBackdrop');
+    const resultsModalEl = document.getElementById('resultsModal');
+    const resultsIconEl = document.getElementById('resultsIcon');
+    const resultsTitleEl = document.getElementById('resultsTitle');
+    const resultsStatsEl = document.getElementById('resultsStats');
+    const resultsPlayAgainBtn = document.getElementById('resultsPlayAgain');
+
+    function formatDuration(totalSeconds) {
+      const m = Math.floor(totalSeconds / 60);
+      const s = totalSeconds % 60;
+      return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function buildResultsStats(rows) {
+      resultsStatsEl.innerHTML = '';
+      rows.forEach(([label, value]) => {
+        const row = document.createElement('div');
+        row.className = 'results-stat-row';
+        const l = document.createElement('span');
+        l.className = 'results-stat-label';
+        l.textContent = label;
+        const v = document.createElement('span');
+        v.className = 'results-stat-value';
+        v.textContent = value;
+        row.appendChild(l);
+        row.appendChild(v);
+        resultsStatsEl.appendChild(row);
+      });
+    }
+
+    function openResultsModal() {
+      resultsModalEl.classList.add('open');
+      resultsBackdropEl.classList.add('open');
+      resultsModalEl.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeResultsModal() {
+      resultsModalEl.classList.remove('open');
+      resultsBackdropEl.classList.remove('open');
+      resultsModalEl.setAttribute('aria-hidden', 'true');
+    }
+
+    // outcome: 'win' | 'lose' | 'chaos'
+    function showResults(outcome) {
+      resultsModalEl.classList.remove('results-win', 'results-lose', 'results-chaos');
+
+      const usedAbilities = [];
+      if (radarCharges <= 0) usedAbilities.push('Радар');
+      if (sixthCharges <= 0) usedAbilities.push('Шестое чувство');
+      if (echoCharges <= 0) usedAbilities.push('Эхолот');
+
+      if (outcome === 'chaos') {
+        resultsModalEl.classList.add('results-chaos');
+        resultsIconEl.textContent = '💀';
+        resultsTitleEl.textContent = 'Забег окончен';
+        buildResultsStats([
+          ['Счёт', chaosScore],
+          ['Лучшее комбо', '×' + (1 + chaosBestCombo * 0.5).toFixed(1).replace(/\.0$/, '')],
+          ['Обезврежено мин', chaosMinesDefused],
+          ['Пережито событий', chaosEventsSurvived],
+          ['Время', formatDuration(seconds)],
+        ]);
+      } else if (outcome === 'win') {
+        resultsModalEl.classList.add('results-win');
+        resultsIconEl.textContent = '🎉';
+        resultsTitleEl.textContent = 'Победа!';
+        const rows = [
+          ['Сложность', ROWS + '×' + COLS],
+          ['Время', formatDuration(seconds)],
+          ['Открыто клеток', revealedCount],
+        ];
+        rows.push(['Способности', usedAbilities.length ? usedAbilities.join(', ') : '—']);
+        buildResultsStats(rows);
+      } else {
+        resultsModalEl.classList.add('results-lose');
+        resultsIconEl.textContent = '💥';
+        resultsTitleEl.textContent = 'Поражение';
+        const rows = [
+          ['Сложность', ROWS + '×' + COLS],
+          ['Время', formatDuration(seconds)],
+          ['Открыто клеток', revealedCount],
+        ];
+        rows.push(['Способности', usedAbilities.length ? usedAbilities.join(', ') : '—']);
+        buildResultsStats(rows);
+      }
+
+      openResultsModal();
     }
 
     // СПОСОБНОСТИ: РАДАР
@@ -1695,6 +1796,8 @@ function setDifficulty(rows, cols, mines, btn) {
 }
 
 function resetGame() {
+    closeResultsModal();
+
     // Запоминаем, были ли мы уже в полноэкранном режиме — если да, остаёмся
     // в нём и просто пересчитываем размеры под новое поле, не закрывая
     // и не открывая заново окно и мини-карту (иначе они дёргались бы
@@ -1894,6 +1997,12 @@ function resetGame() {
       mapToggleBtn.addEventListener('click', toggleMapMode);
       minimapCloseBtn.addEventListener('click', closeMinimapModal);
       minimapBackdropEl.addEventListener('click', closeMinimapModal);
+
+      resultsPlayAgainBtn.addEventListener('click', () => {
+        closeResultsModal();
+        resetGame();
+      });
+      resultsBackdropEl.addEventListener('click', closeResultsModal);
 
       themeResetBtn.addEventListener('click', () => {
         activePreset = 'neon';
