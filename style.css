@@ -300,16 +300,22 @@ body.win::after {
 .cell.covered {
   background: var(--surface-4);
   border-color: var(--border-covered);
+}
+/* "Дыхание" закрытых клеток — только на небольших полях (см.
+   BREATHING_MAX_CELLS в JS). На крупных полях (24×24 и больше) тысячи
+   одновременно анимирующихся клеток заметно лагали, поэтому там эффект
+   просто не запускается — класс .breathing-enabled на доску не ставится. */
+.board.breathing-enabled .cell.covered {
   animation: cellBreathe 4.6s ease-in-out infinite;
 }
 /* Разные задержки по циклу из 5 — чтобы дыхание шло "волной" по полю,
    а не все клетки синхронно моргали разом. Только opacity — дёшево
-   даже на тысячах клеток, и не конфликтует с transform на :active. */
-.cell.covered:nth-child(5n+1) { animation-delay: 0s; }
-.cell.covered:nth-child(5n+2) { animation-delay: 0.9s; }
-.cell.covered:nth-child(5n+3) { animation-delay: 1.8s; }
-.cell.covered:nth-child(5n+4) { animation-delay: 2.7s; }
-.cell.covered:nth-child(5n+5) { animation-delay: 3.6s; }
+   и не конфликтует с transform на :active. */
+.board.breathing-enabled .cell.covered:nth-child(5n+1) { animation-delay: 0s; }
+.board.breathing-enabled .cell.covered:nth-child(5n+2) { animation-delay: 0.9s; }
+.board.breathing-enabled .cell.covered:nth-child(5n+3) { animation-delay: 1.8s; }
+.board.breathing-enabled .cell.covered:nth-child(5n+4) { animation-delay: 2.7s; }
+.board.breathing-enabled .cell.covered:nth-child(5n+5) { animation-delay: 3.6s; }
 @keyframes cellBreathe {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.82; }
@@ -1767,6 +1773,16 @@ body.map-mode .zoom-btn {
 body.map-mode .zoom-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.9);
+}
+body.map-mode .zoom-btn-exit {
+  margin-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 6px;
+  color: #ff5566;
+}
+body.map-mode .zoom-btn-exit:hover {
+  color: #ff2f6e;
+  background: rgba(255, 47, 110, 0.12);
 }
 
 body.map-mode .zoom-btn:active {

@@ -127,6 +127,7 @@ const zoomControls = document.getElementById('zoomControls');
 const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomResetBtn = document.getElementById('zoomReset');
+const mapExitBtn = document.getElementById('mapExit');
 const boardViewport = document.getElementById('boardViewport');
 
     // DOM элементы
@@ -775,8 +776,11 @@ function stopChaosGlitchLoop() {
     }
 }
 
+    const BREATHING_MAX_CELLS = 400; // выше этого "дыхание" клеток выключаем — на больших полях оно ощутимо лагает
+
     function renderBoard() {
       boardEl.innerHTML = '';
+      boardEl.classList.toggle('breathing-enabled', countExistingCells() <= BREATHING_MAX_CELLS);
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const cell = board[r][c];
@@ -2017,7 +2021,7 @@ function resetGame() {
       themeCloseBtn.addEventListener('click', closeThemePanel);
       themeBackdropEl.addEventListener('click', closeThemePanel);
 
-      mapToggleBtn.addEventListener('click', toggleMapMode);
+      mapToggleBtn.addEventListener('click', openMinimapModal);
       minimapCloseBtn.addEventListener('click', closeMinimapModal);
       minimapBackdropEl.addEventListener('click', closeMinimapModal);
 
@@ -2222,6 +2226,7 @@ function resetGame() {
     zoomInBtn.addEventListener('click', zoomIn);
     zoomOutBtn.addEventListener('click', zoomOut);
     zoomResetBtn.addEventListener('click', zoomReset);
+    mapExitBtn.addEventListener('click', exitMapMode);
 
     // Автоматический вход в map-режим при выборе 64×64
     // (уже обработано в setDifficulty и resetGame)
