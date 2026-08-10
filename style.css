@@ -300,6 +300,24 @@ body.win::after {
 .cell.covered {
   background: var(--surface-4);
   border-color: var(--border-covered);
+  animation: cellBreathe 4.6s ease-in-out infinite;
+}
+/* Разные задержки по циклу из 5 — чтобы дыхание шло "волной" по полю,
+   а не все клетки синхронно моргали разом. Только opacity — дёшево
+   даже на тысячах клеток, и не конфликтует с transform на :active. */
+.cell.covered:nth-child(5n+1) { animation-delay: 0s; }
+.cell.covered:nth-child(5n+2) { animation-delay: 0.9s; }
+.cell.covered:nth-child(5n+3) { animation-delay: 1.8s; }
+.cell.covered:nth-child(5n+4) { animation-delay: 2.7s; }
+.cell.covered:nth-child(5n+5) { animation-delay: 3.6s; }
+@keyframes cellBreathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.82; }
+}
+body.lose .cell.covered,
+body.win .cell.covered {
+  animation: none;
+  opacity: 1;
 }
 .cell.covered:hover {
   border-color: var(--border-hover);
@@ -976,6 +994,24 @@ body.chaos-mode .ability-btn-shield {
   pointer-events: none;
   z-index: 55;
   animation: shockwaveExpand 0.85s ease-out forwards;
+}
+
+/* Искры за курсором/пальцем при перетаскивании карты в хаос-режиме —
+   фиксированный "тревожный" цвет (не тема), чисто атмосферно */
+.chaos-trail-spark {
+  position: fixed;
+  margin-left: -50%;
+  margin-top: -50%;
+  border-radius: 50%;
+  background: #ff5566;
+  box-shadow: 0 0 8px #ff2f6e, 0 0 16px rgba(255, 47, 110, 0.6);
+  pointer-events: none;
+  z-index: 56;
+  animation: chaosTrailFade 0.6s ease-out forwards;
+}
+@keyframes chaosTrailFade {
+  0% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.2) translateY(6px); }
 }
 @keyframes shockwaveExpand {
   0% {

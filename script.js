@@ -1011,6 +1011,29 @@ function stopChaosGlitchLoop() {
       }
     }
 
+    // Искры за курсором/пальцем при перетаскивании карты в хаос-режиме —
+    // чисто косметика, никак не влияет на геймплей. Троттлится, чтобы не
+    // плодить элементы на каждый mousemove/touchmove.
+    let lastChaosTrailAt = 0;
+    const CHAOS_TRAIL_THROTTLE_MS = 45;
+    function spawnChaosTrailSpark(x, y) {
+      const now = Date.now();
+      if (now - lastChaosTrailAt < CHAOS_TRAIL_THROTTLE_MS) return;
+      lastChaosTrailAt = now;
+
+      const spark = document.createElement('div');
+      spark.className = 'chaos-trail-spark';
+      const jitterX = (Math.random() - 0.5) * 10;
+      const jitterY = (Math.random() - 0.5) * 10;
+      spark.style.left = (x + jitterX) + 'px';
+      spark.style.top = (y + jitterY) + 'px';
+      const size = 4 + Math.random() * 5;
+      spark.style.width = size + 'px';
+      spark.style.height = size + 'px';
+      document.body.appendChild(spark);
+      spark.addEventListener('animationend', () => spark.remove());
+    }
+
     function clearFxLayers() {
       document.querySelectorAll('.confetti-piece, .shockwave-ring').forEach((el) => el.remove());
     }
@@ -1349,7 +1372,7 @@ function stopChaosGlitchLoop() {
       minimapModalEl.setAttribute('aria-hidden', 'true');
     }
 
-    // ЭКРАН ИТОГА ПАРТИИ
+    // ЭКРАН ИТОГА ПАРТИИ 
     const resultsBackdropEl = document.getElementById('resultsBackdrop');
     const resultsModalEl = document.getElementById('resultsModal');
     const resultsIconEl = document.getElementById('resultsIcon');
@@ -2344,6 +2367,7 @@ function resetGame() {
         mapPanX = mapDragStartPanX + dx;
         mapPanY = mapDragStartPanY + dy;
         updateMapTransform();
+        if (chaosMode) spawnChaosTrailSpark(e.clientX, e.clientY);
     });
     
     document.addEventListener('mouseup', () => {
@@ -2401,6 +2425,7 @@ function resetGame() {
             mapPanX = touchStartPanX + dx;
             mapPanY = touchStartPanY + dy;
             updateMapTransform();
+            if (chaosMode) spawnChaosTrailSpark(touches[0].clientX, touches[0].clientY);
         } else if (touches.length === 2) {
             const dx = touches[0].clientX - touches[1].clientX;
             const dy = touches[0].clientY - touches[1].clientY;
