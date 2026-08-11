@@ -603,10 +603,12 @@ function maybeTriggerChaosShift() {
     if (chaosScore < chaosNextShiftAt) return;
     chaosNextShiftAt += CHAOS_SHIFT_STEP;
 
-    if (shieldCharges > 0) {
-        chaosShieldBlock();
-        return;
-    }
+    // ВРЕМЕННО ОТКЛЮЧЕНО — щит слишком много гасит, балансируем.
+    // Чтобы вернуть, раскомментируй блок ниже.
+    // if (shieldCharges > 0) {
+    //     chaosShieldBlock();
+    //     return;
+    // }
 
     const events = ['shuffle', 'spin', 'regen'];
     const type = events[Math.floor(Math.random() * events.length)];
