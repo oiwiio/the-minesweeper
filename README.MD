@@ -37,3 +37,4 @@
 ## Запуск
 
 Открыть `index.html` в браузере — сборка и сервер не нужны.
+Или по ссылке: https://oiwiio.github.io/the-minesweeper/

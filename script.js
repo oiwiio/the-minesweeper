@@ -33,11 +33,14 @@
     const CHAOS_COMBO_WINDOW_MS = 4500; // сколько есть времени на следующую находку, чтобы комбо не сбросилось
     const CHAOS_COMBO_CAP = 8;
 
-    // "Минута спокойствия" — щит, гасит случайные события хаоса вместо их срабатывания.
+    // "Минута спокойствия" — щит, гасит только "реген" (самое жёсткое событие
+    // хаоса — полный сброс поля). Перемешивание и раскрутку не трогает —
+    // они происходят всегда, хаос как явление никуда не девается.
     // Не разовая способность, а счётчик зарядов с перезарядкой по времени.
     const SHIELD_MAX_CHARGES = 2;
-    const SHIELD_COOLDOWN_MS = 40000; // 40 секунд на восстановление одного заряда
-    const SHIELD_PHRASES = ['Хаос отражён…', 'Не в этот раз', 'Поле держит удар', 'Тишина — и снова тишина'];
+    const SHIELD_COOLDOWN_MS = 65000; // 65 секунд на восстановление одного заряда
+    const SHIELD_PHRASES = ['Реген отражён…', 'Не в этот раз', 'Поле держит удар', 'Тишина — и снова тишина'];
+    const SHIELD_OVERCAP_PHRASES = ['Заряд щита сгорел впустую — уже максимум', 'Перезарядка сгорела: заряды и так на пределе'];
     let shieldCharges = 1; // старт с одним зарядом из максимум SHIELD_MAX_CHARGES
     let shieldCooldownTimeoutId = null;
     let shieldCooldownIntervalId = null;
@@ -448,6 +451,7 @@ function resetChaosState() {
     stopShieldRecharge();
     shieldCharges = 1;
     updateShieldUI();
+    if (chaosMode) scheduleShieldRecharge();
 }
 
 // "МИНУТА СПОКОЙСТВИЯ" (щит от событий хаоса)
@@ -482,18 +486,31 @@ function stopShieldRecharge() {
 // Заряд восстанавливается сам через SHIELD_COOLDOWN_MS — просто подожди.
 // Если зарядов уже максимум, перезарядка не запускается.
 function scheduleShieldRecharge() {
-    if (shieldCharges >= SHIELD_MAX_CHARGES) return;
-    if (shieldCooldownTimeoutId) return; // перезарядка уже идёт
+    if (shieldCooldownTimeoutId) return; // перезарядка уже идёт — не дублируем
 
     shieldCooldownStartedAt = Date.now();
     shieldCooldownIntervalId = setInterval(tickShieldCooldownFill, 200);
     shieldCooldownTimeoutId = setTimeout(() => {
-        shieldCharges = Math.min(SHIELD_MAX_CHARGES, shieldCharges + 1);
+        if (shieldCharges < SHIELD_MAX_CHARGES) {
+            shieldCharges++;
+            updateShieldUI();
+        } else {
+            // Заряды уже на максимуме — цикл сгорел впустую, сообщаем об этом
+            notifyShieldOvercap();
+        }
         stopShieldRecharge();
-        updateShieldUI();
-        // если всё ещё не полный — сразу запускаем следующий цикл перезарядки
-        scheduleShieldRecharge();
+        // Пульс непрерывный — следующий цикл стартует сразу, даже если
+        // сейчас заряды на максимуме (вдруг за 65 сек один потратится).
+        if (chaosMode && !gameOver) scheduleShieldRecharge();
     }, SHIELD_COOLDOWN_MS);
+}
+
+function notifyShieldOvercap() {
+    const phrase = SHIELD_OVERCAP_PHRASES[Math.floor(Math.random() * SHIELD_OVERCAP_PHRASES.length)];
+    abilityHintEl.textContent = phrase;
+    setTimeout(() => {
+        if (abilityHintEl.textContent === phrase) abilityHintEl.textContent = '';
+    }, 2600);
 }
 
 // Вызывается вместо triggerChaosShift, когда есть заряд щита: событие гасится,
@@ -603,15 +620,17 @@ function maybeTriggerChaosShift() {
     if (chaosScore < chaosNextShiftAt) return;
     chaosNextShiftAt += CHAOS_SHIFT_STEP;
 
-    // ВРЕМЕННО ОТКЛЮЧЕНО — щит слишком много гасит, балансируем.
-    // Чтобы вернуть, раскомментируй блок ниже.
-    // if (shieldCharges > 0) {
-    //     chaosShieldBlock();
-    //     return;
-    // }
-
     const events = ['shuffle', 'spin', 'regen'];
     const type = events[Math.floor(Math.random() * events.length)];
+
+    // Щит блокирует только "реген" — самое жёсткое событие (полный сброс
+    // поля). Перемешивание и раскрутку он не трогает — они происходят
+    // всегда, хаос как явление никуда не девается.
+    if (type === 'regen' && shieldCharges > 0) {
+        chaosShieldBlock();
+        return;
+    }
+
     triggerChaosShift(type);
 }
 
@@ -1069,6 +1088,7 @@ function stopChaosGlitchLoop() {
       updateAbilityUI();
       if (chaosMode) {
         stopChaosGlitchLoop();
+        stopShieldRecharge();
         chaosLogEl.textContent = `Забег окончен. Итог: ${chaosScore} очков`;
         chaosLogEl.classList.remove('show');
         void chaosLogEl.offsetWidth;
