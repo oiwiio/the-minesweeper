@@ -613,6 +613,37 @@ body.chaos-mode .chaos-hud {
   text-shadow: 0 0 8px #ff2f6e !important;
 }
 
+/* Счётчик мин в хаос-режиме постоянно "трясётся" — визуальный сигнал,
+   что показанному числу нельзя доверять (само число фальсифицирует script.js) */
+body.chaos-mode .mine-counter {
+  animation: chaosCounterHum 2.6s steps(2, end) infinite;
+}
+@keyframes chaosCounterHum {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-1px, 0); text-shadow: -2px 0 0 rgba(255, 0, 90, 0.6), 2px 0 0 rgba(0, 230, 255, 0.5); }
+  45% { transform: translate(1px, 0); }
+  70% { transform: translate(0, -1px); text-shadow: 1px 0 0 rgba(255, 0, 90, 0.45), -1px 0 0 rgba(0, 230, 255, 0.4); }
+  90% { transform: translate(0, 0); }
+}
+.mine-counter.chaos-counter-deep-glitch {
+  color: #ff2f6e !important;
+  text-shadow: -2px 0 0 rgba(255, 0, 90, 0.75), 2px 0 0 rgba(0, 230, 255, 0.65) !important;
+  transform: translate(1px, -1px) !important;
+}
+
+/* "Затемнение" — событие хаоса, на время прячет уже открытые числа */
+.board.chaos-blackout .cell:not(.covered):not(.flagged) {
+  color: transparent !important;
+  text-shadow: none !important;
+  transition: color 0.15s ease;
+}
+
+/* "Обман" — событие хаоса, часть открытых чисел временно врёт */
+.cell.chaos-corrupted {
+  color: #ff9f40 !important;
+  text-shadow: 0 0 8px #ff9f40 !important;
+}
+
 .play-area {
   display: flex;
   align-items: center;

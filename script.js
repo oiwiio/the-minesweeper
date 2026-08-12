@@ -24,14 +24,19 @@
     let chaosLastDefuseAt = 0;
     let chaosNextShiftAt = 0;
     let chaosGlitchTimeoutId = null;
+    let chaosCounterFuzzTimeoutId = null;
+    let lastChaosEventType = null;
     let chaosBestCombo = 0;       // для экрана итога — лучшая серия за забег
     let chaosMinesDefused = 0;    // сколько мин обезврежено за забег
     let chaosEventsSurvived = 0;  // сколько смен поля реально произошло (не заблокировано щитом)
 
-    const CHAOS_SHIFT_STEP = 150;      // очков между событиями смены поля
+    const CHAOS_SHIFT_STEP = 150;      // очков между событиями смены поля (базовое значение — см. currentChaosShiftStep)
+    const CHAOS_SHIFT_STEP_MIN = 60;   // ниже этого порог между событиями уже не сжимаем
+    const CHAOS_SHIFT_SHRINK_PER_EVENT = 8; // насколько порог сжимается за каждое пережитое событие
     const CHAOS_BASE_POINTS = 10;
     const CHAOS_COMBO_WINDOW_MS = 4500; // сколько есть времени на следующую находку, чтобы комбо не сбросилось
     const CHAOS_COMBO_CAP = 8;
+    const CHAOS_COUNTER_GLYPHS = ['#', '?', '%', '&', '!'];
 
     // "Минута спокойствия" — щит, гасит только "реген" (самое жёсткое событие
     // хаоса — полный сброс поля). Перемешивание и раскрутку не трогает —
@@ -54,6 +59,8 @@
       shuffle: ['Мины расползаются…', 'Кто-то перетасовал карты', 'Всё, что ты запомнил — уже не так', 'Земля поехала под ногами'],
       spin: ['Поле крутит и колбасит', 'Держись — сейчас перевернёт', 'Верх и низ поменялись местами', 'Голова кругом'],
       regen: ['Всё стёрто. Начинаем заново', 'Карта переписана с нуля', 'Прежнее поле больше не существует', 'Чистый лист — и снова в бой'],
+      corrupt: ['Числа больше не врут… или врут?', 'Данные повреждены', 'Не верь тому, что видишь', 'Кто-то подменил цифры'],
+      blackout: ['Свет погас', 'Память стирается…', 'Ты уверен, что помнишь это поле?', 'Темнота съедает подсказки'],
     };
 
     const chaosHudEl = document.getElementById('chaosHud');
@@ -207,8 +214,49 @@ const boardViewport = document.getElementById('boardViewport');
     }
 
     function updateMineCounter() {
+      if (chaosMode) return; // в хаос-режиме счётчик живёт своей жизнью — см. renderMineCounterChaos
       const remaining = TOTAL_MINES - flagCount;
       mineCounterEl.textContent = formatNumber(remaining);
+    }
+
+    // Счётчик мин в хаос-режиме нарочно не показывает правду — сразу двумя способами:
+    // 1) большую часть времени показывает число с случайным шумом вокруг настоящего;
+    // 2) изредка на долю секунды выдаёт откровенный мусор из символов вместо цифр.
+    function renderMineCounterChaos() {
+      if (!chaosMode || !mineCounterEl) return;
+      const remaining = TOTAL_MINES - flagCount;
+
+      if (Math.random() < 0.16) {
+        const glitchText = Array.from({ length: 3 }, () => (
+          CHAOS_COUNTER_GLYPHS[Math.floor(Math.random() * CHAOS_COUNTER_GLYPHS.length)]
+        )).join('');
+        mineCounterEl.textContent = glitchText;
+        mineCounterEl.classList.add('chaos-counter-deep-glitch');
+        setTimeout(() => mineCounterEl.classList.remove('chaos-counter-deep-glitch'), 180);
+        return;
+      }
+
+      const noise = Math.round((Math.random() - 0.5) * 12); // ±6 вокруг правды
+      const fuzzed = Math.max(0, remaining + noise);
+      mineCounterEl.textContent = formatNumber(fuzzed);
+    }
+
+    function startChaosCounterFuzz() {
+      stopChaosCounterFuzz();
+      const tick = () => {
+        renderMineCounterChaos();
+        chaosCounterFuzzTimeoutId = setTimeout(tick, 500 + Math.random() * 650);
+      };
+      tick();
+    }
+
+    function stopChaosCounterFuzz() {
+      if (chaosCounterFuzzTimeoutId) {
+        clearTimeout(chaosCounterFuzzTimeoutId);
+        chaosCounterFuzzTimeoutId = null;
+      }
+      mineCounterEl.classList.remove('chaos-counter-deep-glitch');
+      mineCounterEl.textContent = formatNumber(TOTAL_MINES - flagCount);
     }
 
     function updateTimer() {
@@ -444,6 +492,7 @@ function resetChaosState() {
     chaosBestCombo = 0;
     chaosMinesDefused = 0;
     chaosEventsSurvived = 0;
+    lastChaosEventType = null;
     updateChaosHUD();
     updateChaosVignette();
     chaosLogEl.classList.remove('show');
@@ -454,6 +503,9 @@ function resetChaosState() {
     shieldCharges = 1;
     updateShieldUI();
     if (chaosMode) scheduleShieldRecharge();
+
+    stopChaosCounterFuzz();
+    if (chaosMode) startChaosCounterFuzz();
 }
 
 // "МИНУТА СПОКОЙСТВИЯ" (щит от событий хаоса)
@@ -635,17 +687,33 @@ function breakChaosCombo() {
     updateChaosHUD();
 }
 
+// Порог между событиями хаоса сжимается по мере того, как ты выживаешь дольше —
+// в начале забега события идут раз в CHAOS_SHIFT_STEP очков, к концу — заметно чаще.
+function currentChaosShiftStep() {
+    const shrink = Math.min(CHAOS_SHIFT_STEP - CHAOS_SHIFT_STEP_MIN, chaosEventsSurvived * CHAOS_SHIFT_SHRINK_PER_EVENT);
+    return CHAOS_SHIFT_STEP - shrink;
+}
+
+// Выбираем следующий тип события так, чтобы не повторить предыдущий подряд —
+// иначе на глаз кажется, что "вечно крутит", даже если это просто совпадение.
+function pickChaosEventType() {
+    const pool = ['shuffle', 'spin', 'regen', 'corrupt', 'blackout'];
+    const candidates = pool.filter((t) => t !== lastChaosEventType);
+    const type = candidates[Math.floor(Math.random() * candidates.length)];
+    lastChaosEventType = type;
+    return type;
+}
+
 function maybeTriggerChaosShift() {
     if (chaosScore < chaosNextShiftAt) return;
-    chaosNextShiftAt += CHAOS_SHIFT_STEP;
+    chaosNextShiftAt += currentChaosShiftStep();
     updateChaosVignette(); // новый цикл начался — виньетка спадает обратно
 
-    const events = ['shuffle', 'spin', 'regen'];
-    const type = events[Math.floor(Math.random() * events.length)];
+    const type = pickChaosEventType();
 
     // Щит блокирует только "реген" — самое жёсткое событие (полный сброс
-    // поля). Перемешивание и раскрутку он не трогает — они происходят
-    // всегда, хаос как явление никуда не девается.
+    // поля). Остальное он не трогает — они происходят всегда, хаос как
+    // явление никуда не девается.
     if (type === 'regen' && shieldCharges > 0) {
         chaosShieldBlock();
         return;
@@ -660,6 +728,8 @@ function triggerChaosShift(type) {
     setTimeout(() => {
         if (type === 'shuffle') chaosShuffleMines();
         else if (type === 'spin') chaosSpinBoard();
+        else if (type === 'corrupt') chaosCorruptNumbers();
+        else if (type === 'blackout') chaosBlackout();
         else chaosRegenBoard();
     }, 260);
 }
@@ -767,6 +837,64 @@ function chaosRegenBoard() {
     updateMineCounter();
     updateMinimap();
     chaosTypewriterAnnounce(CHAOS_PHRASES.regen[Math.floor(Math.random() * CHAOS_PHRASES.regen.length)]);
+}
+
+// Часть уже открытых чисел на время начинает врать — сами клетки (и что под
+// ними) не меняются, это подмена только на экране. Настоящее значение
+// (board[r][c].number) не трогаем, поэтому чординг и вся игровая логика
+// продолжают работать корректно все игровое время, пока висит обман.
+function chaosCorruptNumbers() {
+    const revealedCells = [];
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = board[r][c];
+            if (cell.exists && cell.revealed && !cell.mine) revealedCells.push({ r, c });
+        }
+    }
+    if (!revealedCells.length) return;
+    shuffleArray(revealedCells);
+    const corruptCount = Math.min(Math.max(3, Math.round(revealedCells.length * 0.12)), revealedCells.length);
+    const corrupted = revealedCells.slice(0, corruptCount);
+    const duration = 6000 + Math.random() * 3000;
+
+    corrupted.forEach(({ r, c }) => {
+        const idx = r * COLS + c;
+        const el = boardEl.children[idx];
+        if (!el) return;
+        const trueNumber = board[r][c].number;
+        let fakeNum = trueNumber;
+        while (fakeNum === trueNumber) fakeNum = Math.floor(Math.random() * 9);
+        el.classList.add('chaos-corrupted');
+        if (fakeNum === 0) {
+            el.textContent = '';
+            delete el.dataset.number;
+        } else {
+            el.textContent = fakeNum;
+            el.dataset.number = fakeNum;
+        }
+    });
+
+    chaosTypewriterAnnounce(CHAOS_PHRASES.corrupt[Math.floor(Math.random() * CHAOS_PHRASES.corrupt.length)]);
+
+    setTimeout(() => {
+        corrupted.forEach(({ r, c }) => {
+            const idx = r * COLS + c;
+            const el = boardEl.children[idx];
+            if (el) el.classList.remove('chaos-corrupted');
+            updateCellElement(r, c); // возвращаем правду
+        });
+    }, duration);
+}
+
+// Прячет уже открытые числа с экрана на пару секунд — сама клетка и её
+// правда никуда не деваются, просто на время недоступны для взгляда.
+function chaosBlackout() {
+    const duration = 2200 + Math.random() * 1200;
+    boardEl.classList.add('chaos-blackout');
+    chaosTypewriterAnnounce(CHAOS_PHRASES.blackout[Math.floor(Math.random() * CHAOS_PHRASES.blackout.length)]);
+    setTimeout(() => {
+        boardEl.classList.remove('chaos-blackout');
+    }, duration);
 }
 
 // Косметические глитчи — ничего не меняют по факту, только сбивают с толку.
@@ -1109,6 +1237,7 @@ function stopChaosGlitchLoop() {
       if (chaosMode) {
         stopChaosGlitchLoop();
         stopShieldRecharge();
+        stopChaosCounterFuzz();
         chaosVignetteEl.style.setProperty('--vignette-opacity', 0);
         chaosVignetteEl.classList.remove('critical');
         chaosLogEl.textContent = `Забег окончен. Итог: ${chaosScore} очков`;
