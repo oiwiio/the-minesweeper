@@ -502,6 +502,28 @@ body.chaos-mode .chaos-hud {
   transform: translateY(0);
 }
 
+/* Виньетка, нарастающая по мере приближения к следующему событию хаоса —
+   даёт ощущение "шторм приближается" вместо внезапного щелчка. Прозрачность
+   гонит JS через CSS-переменную; критическое состояние (близко к порогу)
+   добавляет пульс через filter — отдельное свойство, чтобы не конфликтовать
+   с анимацией/transition на opacity. */
+.chaos-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(255, 47, 110, 0.85) 145%);
+  opacity: var(--vignette-opacity, 0);
+  transition: opacity 0.35s ease;
+}
+.chaos-vignette.critical {
+  animation: chaosVignetteCritical 0.85s ease-in-out infinite;
+}
+@keyframes chaosVignetteCritical {
+  0%, 100% { filter: saturate(1) brightness(1); }
+  50% { filter: saturate(1.7) brightness(1.2); }
+}
+
 /* Крупное уведомление-"печатная машинка" вверху экрана — не привязано
    к игровому полю (fixed относительно viewport), для полного сброса
    поля и перемешивания мин в хаос-режиме. */
@@ -567,11 +589,24 @@ body.chaos-mode .chaos-hud {
   animation: chaosGlitchShake 0.45s ease;
 }
 @keyframes chaosGlitchShake {
-  0%, 100% { transform: translate(0, 0); }
-  20% { transform: translate(-2px, 1px); }
-  40% { transform: translate(2px, -1px); }
-  60% { transform: translate(-1px, -1px); filter: hue-rotate(20deg); }
-  80% { transform: translate(1px, 1px); }
+  0%, 100% { transform: translate(0, 0); filter: none; }
+  15% {
+    transform: translate(-2px, 1px);
+    filter: drop-shadow(-2px 0 0 rgba(255, 0, 90, 0.55)) drop-shadow(2px 0 0 rgba(0, 230, 255, 0.5));
+  }
+  35% {
+    transform: translate(2px, -1px);
+    filter: drop-shadow(3px 0 0 rgba(255, 0, 90, 0.55)) drop-shadow(-3px 0 0 rgba(0, 230, 255, 0.5));
+  }
+  55% {
+    transform: translate(-1px, -1px);
+    filter: drop-shadow(-2px 0 0 rgba(255, 0, 90, 0.5)) drop-shadow(2px 0 0 rgba(0, 230, 255, 0.45)) hue-rotate(20deg);
+  }
+  75% {
+    transform: translate(1px, 1px);
+    filter: drop-shadow(1px 0 0 rgba(255, 0, 90, 0.35)) drop-shadow(-1px 0 0 rgba(0, 230, 255, 0.3));
+  }
+  90% { transform: translate(0, 0); filter: none; }
 }
 .cell.chaos-flicker {
   color: #ff2f6e !important;

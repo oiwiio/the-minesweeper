@@ -62,6 +62,7 @@
     const chaosComboValueEl = document.getElementById('chaosComboValue');
     const chaosLogEl = document.getElementById('chaosLog');
     const chaosTypewriterEl = document.getElementById('chaosTypewriter');
+    const chaosVignetteEl = document.getElementById('chaosVignette');
     let chaosTypewriterTimeoutId = null;
 
     // ЗВУК
@@ -444,6 +445,7 @@ function resetChaosState() {
     chaosMinesDefused = 0;
     chaosEventsSurvived = 0;
     updateChaosHUD();
+    updateChaosVignette();
     chaosLogEl.classList.remove('show');
     stopChaosGlitchLoop();
     if (chaosMode) startChaosGlitchLoop();
@@ -533,6 +535,22 @@ function updateChaosHUD() {
     chaosComboValueEl.textContent = '×' + (1 + chaosCombo * 0.5).toFixed(1).replace(/\.0$/, '');
 }
 
+// Виньетка нарастает по мере приближения chaosScore к порогу chaosNextShiftAt —
+// "шторм приближается" вместо внезапного щелчка. При приближении к порогу
+// (>75% цикла) добавляется пульсирующее состояние.
+function updateChaosVignette() {
+    if (!chaosVignetteEl) return;
+    if (!chaosMode) {
+        chaosVignetteEl.style.setProperty('--vignette-opacity', 0);
+        chaosVignetteEl.classList.remove('critical');
+        return;
+    }
+    const cycleStart = chaosNextShiftAt - CHAOS_SHIFT_STEP;
+    const progress = Math.max(0, Math.min(1, (chaosScore - cycleStart) / CHAOS_SHIFT_STEP));
+    chaosVignetteEl.style.setProperty('--vignette-opacity', (progress * 0.6).toFixed(2));
+    chaosVignetteEl.classList.toggle('critical', progress > 0.75);
+}
+
 function logChaosEvent(type) {
     const pool = CHAOS_PHRASES[type];
     if (!pool) return;
@@ -602,6 +620,7 @@ function awardChaosPoints() {
     const points = Math.round(CHAOS_BASE_POINTS * multiplier);
     chaosScore += points;
     updateChaosHUD();
+    updateChaosVignette();
 
     chaosComboBoxEl.classList.remove('combo-pop');
     void chaosComboBoxEl.offsetWidth;
@@ -619,6 +638,7 @@ function breakChaosCombo() {
 function maybeTriggerChaosShift() {
     if (chaosScore < chaosNextShiftAt) return;
     chaosNextShiftAt += CHAOS_SHIFT_STEP;
+    updateChaosVignette(); // новый цикл начался — виньетка спадает обратно
 
     const events = ['shuffle', 'spin', 'regen'];
     const type = events[Math.floor(Math.random() * events.length)];
@@ -1089,6 +1109,8 @@ function stopChaosGlitchLoop() {
       if (chaosMode) {
         stopChaosGlitchLoop();
         stopShieldRecharge();
+        chaosVignetteEl.style.setProperty('--vignette-opacity', 0);
+        chaosVignetteEl.classList.remove('critical');
         chaosLogEl.textContent = `Забег окончен. Итог: ${chaosScore} очков`;
         chaosLogEl.classList.remove('show');
         void chaosLogEl.offsetWidth;
