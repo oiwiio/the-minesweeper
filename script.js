@@ -70,6 +70,7 @@
     const chaosLogEl = document.getElementById('chaosLog');
     const chaosTypewriterEl = document.getElementById('chaosTypewriter');
     const chaosVignetteEl = document.getElementById('chaosVignette');
+    const chaosStaticOverlayEl = document.getElementById('chaosStaticOverlay');
     let chaosTypewriterTimeoutId = null;
 
     // ЗВУК
@@ -603,6 +604,22 @@ function updateChaosVignette() {
     chaosVignetteEl.classList.toggle('critical', progress > 0.75);
 }
 
+// Короткая вспышка+шум — "сигнал пропадает" за долю секунды до события.
+function chaosEventFlash() {
+    if (!chaosStaticOverlayEl) return;
+    chaosStaticOverlayEl.classList.remove('flash');
+    void chaosStaticOverlayEl.offsetWidth; // форсируем reflow, чтобы анимация перезапустилась
+    chaosStaticOverlayEl.classList.add('flash');
+}
+
+// Устойчивый шум на заданную длительность — используется во время blackout,
+// пока поле спрятано, чтобы экран не был просто пустым.
+function chaosStaticSustain(duration) {
+    if (!chaosStaticOverlayEl) return;
+    chaosStaticOverlayEl.classList.add('sustain');
+    setTimeout(() => chaosStaticOverlayEl.classList.remove('sustain'), duration);
+}
+
 function logChaosEvent(type) {
     const pool = CHAOS_PHRASES[type];
     if (!pool) return;
@@ -725,6 +742,7 @@ function maybeTriggerChaosShift() {
 function triggerChaosShift(type) {
     chaosEventsSurvived++;
     chaosGlitchBurst();
+    chaosEventFlash();
     setTimeout(() => {
         if (type === 'shuffle') chaosShuffleMines();
         else if (type === 'spin') chaosSpinBoard();
@@ -875,6 +893,7 @@ function chaosCorruptNumbers() {
     });
 
     chaosTypewriterAnnounce(CHAOS_PHRASES.corrupt[Math.floor(Math.random() * CHAOS_PHRASES.corrupt.length)]);
+    playSound('chaosCorrupt');
 
     setTimeout(() => {
         corrupted.forEach(({ r, c }) => {
@@ -892,6 +911,8 @@ function chaosBlackout() {
     const duration = 2200 + Math.random() * 1200;
     boardEl.classList.add('chaos-blackout');
     chaosTypewriterAnnounce(CHAOS_PHRASES.blackout[Math.floor(Math.random() * CHAOS_PHRASES.blackout.length)]);
+    playSound('chaosBlackout');
+    chaosStaticSustain(duration);
     setTimeout(() => {
         boardEl.classList.remove('chaos-blackout');
     }, duration);
@@ -901,6 +922,7 @@ function chaosBlackout() {
 function chaosGlitchBurst() {
     boardEl.classList.add('chaos-glitching');
     setTimeout(() => boardEl.classList.remove('chaos-glitching'), 450);
+    playSound('chaosGlitch');
 
     const revealedCells = [];
     for (let r = 0; r < ROWS; r++) {
@@ -1136,6 +1158,22 @@ function stopChaosGlitchLoop() {
           beep({ freq: 180, duration: 0.2, type: 'sine', gain: 0.09 });
           beep({ freq: 180, duration: 0.2, type: 'sine', gain: 0.06, delay: 0.22 });
           break;
+        case 'chaosGlitch':
+          beep({ freq: 800 + Math.random() * 500, duration: 0.035, type: 'square', gain: 0.045 });
+          beep({ freq: 150 + Math.random() * 200, duration: 0.03, type: 'square', gain: 0.035, delay: 0.05 });
+          break;
+        case 'chaosCorrupt':
+          beep({ freq: 300, duration: 0.28, type: 'sawtooth', gain: 0.06, glideTo: 340 });
+          beep({ freq: 306, duration: 0.28, type: 'sawtooth', gain: 0.05, glideTo: 258, delay: 0.03 });
+          break;
+        case 'chaosBlackout':
+          beep({ freq: 260, duration: 0.55, type: 'sine', gain: 0.09, glideTo: 35 });
+          break;
+        case 'chaosDeath':
+          beep({ freq: 150, duration: 0.5, type: 'square', gain: 0.15, glideTo: 30 });
+          beep({ freq: 900, duration: 0.06, type: 'square', gain: 0.08, delay: 0.05 });
+          beep({ freq: 60, duration: 0.08, type: 'square', gain: 0.09, delay: 0.14 });
+          break;
       }
     }
 
@@ -1240,12 +1278,15 @@ function stopChaosGlitchLoop() {
         stopChaosCounterFuzz();
         chaosVignetteEl.style.setProperty('--vignette-opacity', 0);
         chaosVignetteEl.classList.remove('critical');
+        document.body.classList.add('chaos-death-flash');
+        setTimeout(() => document.body.classList.remove('chaos-death-flash'), 700);
+        playSound('chaosDeath');
         chaosLogEl.textContent = `Забег окончен. Итог: ${chaosScore} очков`;
         chaosLogEl.classList.remove('show');
         void chaosLogEl.offsetWidth;
         chaosLogEl.classList.add('show');
       }
-      playSound('lose');
+      if (!chaosMode) playSound('lose');
       updateMinimap();
       setTimeout(() => showResults(chaosMode ? 'chaos' : 'lose'), 900);
     }

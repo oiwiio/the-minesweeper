@@ -524,6 +524,53 @@ body.chaos-mode .chaos-hud {
   50% { filter: saturate(1.7) brightness(1.2); }
 }
 
+/* Вспышка+шум перед КАЖДЫМ событием хаоса — "сигнал пропадает" за долю
+   секунды до того, как что-то произойдёт. И отдельно — устойчивый шум
+   на время blackout (там он держится дольше, пока поле спрятано). */
+.chaos-static-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.07) 0px, rgba(255, 255, 255, 0.07) 1px, transparent 1px, transparent 3px);
+  mix-blend-mode: overlay;
+}
+.chaos-static-overlay.flash {
+  animation: chaosStaticFlash 0.38s ease-out;
+}
+@keyframes chaosStaticFlash {
+  0% { opacity: 0; background-color: rgba(255, 47, 110, 0); }
+  12% { opacity: 0.9; background-color: rgba(255, 47, 110, 0.28); }
+  40% { opacity: 0.45; background-color: transparent; }
+  100% { opacity: 0; }
+}
+.chaos-static-overlay.sustain {
+  opacity: 0.2;
+  animation: chaosStaticFlicker 0.15s steps(2) infinite;
+}
+@keyframes chaosStaticFlicker {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(3px); }
+}
+
+/* Отдельный, более "разбитый" визуал смерти именно в хаос-режиме —
+   вспышка-разлом поверх всего экрана, вместо обычного взрыва по клетке. */
+body.chaos-death-flash::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 47, 110, 0.55) 35%, transparent 70%);
+  animation: chaosDeathBurst 0.7s ease-out forwards;
+}
+@keyframes chaosDeathBurst {
+  0% { opacity: 1; transform: scale(0.3); }
+  40% { opacity: 0.9; transform: scale(1.4); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+
 /* Крупное уведомление-"печатная машинка" вверху экрана — не привязано
    к игровому полю (fixed относительно viewport), для полного сброса
    поля и перемешивания мин в хаос-режиме. */
