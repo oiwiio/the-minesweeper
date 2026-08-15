@@ -53,6 +53,9 @@
 
     const shieldBtn = document.getElementById('abilityShield');
     const shieldChargeEl = document.getElementById('shieldCharge');
+    const secondChanceBtn = document.getElementById('abilitySecondChance');
+    const secondChanceChargeEl = document.getElementById('secondChanceCharge');
+    let secondChanceCharges = 1; // один заряд на весь забег, без перезарядки
     const shieldCooldownFillEl = document.getElementById('shieldCooldownFill');
 
     const CHAOS_PHRASES = {
@@ -62,6 +65,7 @@
       corrupt: ['Числа больше не врут… или врут?', 'Данные повреждены', 'Не верь тому, что видишь', 'Кто-то подменил цифры'],
       blackout: ['Свет погас', 'Память стирается…', 'Ты уверен, что помнишь это поле?', 'Темнота съедает подсказки'],
     };
+    const SECOND_CHANCE_PHRASES = ['Не в этот раз.', 'Смерть отменена…', 'Второй шанс — использован', 'Кто-то поймал тебя у края'];
 
     const chaosHudEl = document.getElementById('chaosHud');
     const chaosScoreValueEl = document.getElementById('chaosScoreValue');
@@ -505,6 +509,9 @@ function resetChaosState() {
     updateShieldUI();
     if (chaosMode) scheduleShieldRecharge();
 
+    secondChanceCharges = 1;
+    updateSecondChanceUI();
+
     stopChaosCounterFuzz();
     if (chaosMode) startChaosCounterFuzz();
 }
@@ -516,6 +523,47 @@ function updateShieldUI() {
     shieldChargeEl.textContent = shieldCharges;
     shieldBtn.classList.toggle('depleted', shieldCharges <= 0);
     shieldBtn.setAttribute('aria-pressed', String(shieldCharges > 0));
+}
+
+// "ВТОРОЙ ШАНС" — полностью автоматическая страховка. Перехватывается прямо
+// в revealSingleCell до вызова triggerLoss: мина задним числом становится
+// обезвреженной (как при флаг-дефьюзе), забег продолжается.
+function updateSecondChanceUI() {
+    if (!secondChanceChargeEl) return;
+    secondChanceChargeEl.textContent = secondChanceCharges;
+    secondChanceBtn.disabled = secondChanceCharges <= 0 || gameOver;
+    secondChanceBtn.setAttribute('aria-pressed', String(secondChanceCharges > 0));
+}
+
+function triggerSecondChance(r, c) {
+    secondChanceCharges--;
+    updateSecondChanceUI();
+
+    const cell = board[r][c];
+    cell.defused = true;
+    cell.flagged = true;
+    flagCount++;
+    chaosMinesDefused++;
+    updateCellElement(r, c);
+
+    const idx = r * COLS + c;
+    const el = boardEl.children[idx];
+    if (el) {
+        el.classList.add('second-chance-flash');
+        el.addEventListener('animationend', () => el.classList.remove('second-chance-flash'), { once: true });
+        const rect = el.getBoundingClientRect();
+        spawnHolyBurst(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    }
+
+    document.body.classList.add('second-chance-holy');
+    setTimeout(() => document.body.classList.remove('second-chance-holy'), 700);
+
+    playSound('secondChance');
+    vibrate([20, 30, 20, 30, 60]);
+    chaosTypewriterAnnounce(SECOND_CHANCE_PHRASES[Math.floor(Math.random() * SECOND_CHANCE_PHRASES.length)], 'holy');
+
+    updateMineCounter();
+    updateMinimap();
 }
 
 function tickShieldCooldownFill() {
@@ -633,7 +681,7 @@ function logChaosEvent(type) {
 // Крупное уведомление вверху экрана с эффектом печатной машинки:
 // печатает фразу по букве, держит, потом стирает по букве обратно.
 // Не привязано к размеру поля — фиксированная позиция, всегда видно.
-function chaosTypewriterAnnounce(text) {
+function chaosTypewriterAnnounce(text, variantClass) {
     if (chaosTypewriterTimeoutId) {
         clearTimeout(chaosTypewriterTimeoutId);
         chaosTypewriterTimeoutId = null;
@@ -644,6 +692,8 @@ function chaosTypewriterAnnounce(text) {
     const HOLD_TIME = 1100;
     let i = 0;
 
+    chaosTypewriterEl.classList.remove('holy');
+    if (variantClass) chaosTypewriterEl.classList.add(variantClass);
     chaosTypewriterEl.classList.add('show');
 
     function typeStep() {
@@ -1174,6 +1224,11 @@ function stopChaosGlitchLoop() {
           beep({ freq: 900, duration: 0.06, type: 'square', gain: 0.08, delay: 0.05 });
           beep({ freq: 60, duration: 0.08, type: 'square', gain: 0.09, delay: 0.14 });
           break;
+        case 'secondChance':
+          beep({ freq: 440, duration: 0.14, type: 'triangle', gain: 0.1 });
+          beep({ freq: 660, duration: 0.16, type: 'triangle', gain: 0.1, delay: 0.09 });
+          beep({ freq: 880, duration: 0.28, type: 'triangle', gain: 0.11, delay: 0.18 });
+          break;
       }
     }
 
@@ -1219,6 +1274,34 @@ function stopChaosGlitchLoop() {
         ring.style.setProperty('--scale-end', scaleEnd);
         document.body.appendChild(ring);
         ring.addEventListener('animationend', () => ring.remove());
+      }
+    }
+
+    // "Второй шанс" сработал — золотые кольца + расходящиеся лучи из точки
+    // спасённой клетки, отдельный праздничный эффект, не похожий ни на
+    // взрыв, ни на обычное обезвреживание.
+    function spawnHolyBurst(centerX, centerY) {
+      const maxDim = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2);
+      const scaleEnd = maxDim / 18;
+      for (let i = 0; i < 2; i++) {
+        const ring = document.createElement('div');
+        ring.className = 'holy-burst-ring';
+        ring.style.left = centerX + 'px';
+        ring.style.top = centerY + 'px';
+        ring.style.animationDelay = (i * 0.12) + 's';
+        ring.style.setProperty('--scale-end', scaleEnd);
+        document.body.appendChild(ring);
+        ring.addEventListener('animationend', () => ring.remove());
+      }
+      const flareCount = 8;
+      for (let i = 0; i < flareCount; i++) {
+        const flare = document.createElement('div');
+        flare.className = 'holy-flare';
+        flare.style.left = centerX + 'px';
+        flare.style.top = centerY + 'px';
+        flare.style.setProperty('--flare-angle', (i * (360 / flareCount)) + 'deg');
+        document.body.appendChild(flare);
+        flare.addEventListener('animationend', () => flare.remove());
       }
     }
 
@@ -1337,6 +1420,10 @@ function stopChaosGlitchLoop() {
       }
 
       if (cell.mine) {
+        if (chaosMode && secondChanceCharges > 0) {
+          triggerSecondChance(r, c);
+          return;
+        }
         triggerLoss(r, c);
         return;
       }
@@ -1691,6 +1778,7 @@ function stopChaosGlitchLoop() {
       updateSixthUI();
       updateEchoUI();
       updateShieldUI();
+      updateSecondChanceUI();
     }
 
     function setAbilityMode(newMode) {
