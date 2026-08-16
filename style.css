@@ -900,11 +900,11 @@ body.chaos-mode .mine-counter {
   color: var(--text-muted);
 }
 
-/* "Минута спокойствия" — щит, доступен только в хаос-режиме */
-.ability-btn-shield {
+/* Способности, доступные только в хаос-режиме (щит, особый флажок) */
+.ability-btn-chaos-only {
   display: none;
 }
-body.chaos-mode .ability-btn-shield {
+body.chaos-mode .ability-btn-chaos-only {
   display: flex;
 }
 .ability-btn-shield.depleted {
@@ -1034,6 +1034,34 @@ body.chaos-mode .ability-btn-shield {
 @keyframes radarBlip {
   0%, 100% { opacity: 0.5; transform: scale(0.85); }
   50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* "Особый флажок" — метка "возможно мина", янтарный цвет (не красный радара),
+   т.к. картина заведомо неточная — часть реальных мин пропущена, могут быть ложные метки */
+.cell.markflag-mine {
+  position: relative;
+}
+.cell.markflag-mine::after {
+  content: "?";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85em;
+  font-weight: 700;
+  color: #ff9f40;
+  text-shadow: 0 0 8px #ff9f40, 0 0 18px rgba(255, 159, 64, 0.7);
+  animation: radarBlip 0.9s ease-in-out infinite;
+}
+/* Промах — короткая тряска и красная вспышка на угаданной клетке */
+.cell.markflag-miss {
+  animation: markflagMissShake 0.4s ease;
+}
+@keyframes markflagMissShake {
+  0%, 100% { transform: translate(0, 0); box-shadow: 0 0 0 rgba(255, 47, 110, 0); }
+  25% { transform: translate(-3px, 0); box-shadow: 0 0 10px rgba(255, 47, 110, 0.6); }
+  75% { transform: translate(3px, 0); box-shadow: 0 0 10px rgba(255, 47, 110, 0.6); }
 }
 
 /* "Радарный" разворот при скане — фиксированный зелёный, системный

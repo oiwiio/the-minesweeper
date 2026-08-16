@@ -81,7 +81,15 @@
           <span class="ability-tooltip-desc">Полностью автоматическая страховка. Если открыть настоящую мину обычным кликом — она задним числом окажется безопасной, и забег продолжится. Срабатывает сама, без активации. Один заряд на весь забег, без перезарядки.</span>
         </span>
       </button>
-      <button class="ability-btn ability-btn-shield" id="abilityShield" data-ability="shield" type="button" aria-label="Минута спокойствия" aria-pressed="false">
+      <button class="ability-btn ability-btn-chaos-only" id="abilityMarkFlag" data-ability="markFlag" type="button" aria-label="Особый флажок" aria-pressed="false">
+        <span class="ability-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/><text x="8.3" y="10.5" font-size="7.5" font-weight="700" stroke="none" fill="currentColor">?</text></svg></span>
+        <span class="ability-charge" id="markFlagCharge">2</span>
+        <span class="ability-tooltip">
+          <span class="ability-tooltip-title">Особый флажок</span>
+          <span class="ability-tooltip-desc">Выберите клетку, где по-вашему стоит мина. Угадали — увидите примерную (не точную) картину мин в области 9×9 вокруг. Не угадали — просто промах. Заряд тратится в любом случае. 2 заряда, без перезарядки. Только в хаос-режиме.</span>
+        </span>
+      </button>
+      <button class="ability-btn ability-btn-shield ability-btn-chaos-only" id="abilityShield" data-ability="shield" type="button" aria-label="Минута спокойствия" aria-pressed="false">
         <span class="ability-icon"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span>
         <span class="ability-charge" id="shieldCharge">1</span>
         <span class="ability-cooldown-bar"><span class="ability-cooldown-fill" id="shieldCooldownFill"></span></span>

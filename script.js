@@ -58,6 +58,17 @@
     let secondChanceCharges = 1; // один заряд на весь забег, без перезарядки
     const shieldCooldownFillEl = document.getElementById('shieldCooldownFill');
 
+    // "Особый флажок" — гадаем, где мина. Угадал — приблизительная (не точная)
+    // картина мин в области 9×9 вокруг. Не угадал — просто промах. Заряд
+    // тратится в любом случае. Только в хаос-режиме.
+    const MARKFLAG_RADIUS = 4;          // радиус в клетках => область 9×9
+    const MARKFLAG_DURATION_MS = 6000;  // сколько висит подсказка на поле
+    const MARKFLAG_MISS_RATE = 0.22;    // доля настоящих мин в области, которую не покажем
+    const MARKFLAG_DECOY_COUNT = 2;     // сколько ложных меток подмешаем
+    let markFlagCharges = 2;
+    const markFlagBtn = document.getElementById('abilityMarkFlag');
+    const markFlagChargeEl = document.getElementById('markFlagCharge');
+
     const CHAOS_PHRASES = {
       shuffle: ['Мины расползаются…', 'Кто-то перетасовал карты', 'Всё, что ты запомнил — уже не так', 'Земля поехала под ногами'],
       spin: ['Поле крутит и колбасит', 'Держись — сейчас перевернёт', 'Верх и низ поменялись местами', 'Голова кругом'],
@@ -509,8 +520,8 @@ function resetChaosState() {
     updateShieldUI();
     if (chaosMode) scheduleShieldRecharge();
 
-    secondChanceCharges = 1;
-    updateSecondChanceUI();
+    markFlagCharges = 2;
+    updateMarkFlagUI();
 
     stopChaosCounterFuzz();
     if (chaosMode) startChaosCounterFuzz();
@@ -523,6 +534,15 @@ function updateShieldUI() {
     shieldChargeEl.textContent = shieldCharges;
     shieldBtn.classList.toggle('depleted', shieldCharges <= 0);
     shieldBtn.setAttribute('aria-pressed', String(shieldCharges > 0));
+}
+
+// "ОСОБЫЙ ФЛАЖОК" — гадаем клетку с миной, заряд тратится в любом исходе
+function updateMarkFlagUI() {
+    if (!markFlagChargeEl) return;
+    markFlagChargeEl.textContent = markFlagCharges;
+    markFlagBtn.disabled = markFlagCharges <= 0 || gameOver || sixthActive || abilityMode === 'radar';
+    markFlagBtn.classList.toggle('armed', abilityMode === 'markFlag');
+    markFlagBtn.setAttribute('aria-pressed', String(abilityMode === 'markFlag'));
 }
 
 // "ВТОРОЙ ШАНС" — полностью автоматическая страховка. Перехватывается прямо
@@ -1201,6 +1221,13 @@ function stopChaosGlitchLoop() {
         case 'radar':
           beep({ freq: 900, duration: 0.14, type: 'sine', gain: 0.07, glideTo: 1500 });
           break;
+        case 'markflagHit':
+          beep({ freq: 500, duration: 0.1, type: 'triangle', gain: 0.08, glideTo: 900 });
+          beep({ freq: 900, duration: 0.12, type: 'triangle', gain: 0.07, delay: 0.11 });
+          break;
+        case 'markflagMiss':
+          beep({ freq: 380, duration: 0.14, type: 'sawtooth', gain: 0.08, glideTo: 180 });
+          break;
         case 'sixth':
           beep({ freq: 280, duration: 0.16, type: 'sine', gain: 0.08, glideTo: 480 });
           break;
@@ -1501,6 +1528,11 @@ function stopChaosGlitchLoop() {
         return;
       }
 
+      if (abilityMode === 'markFlag') {
+        useMarkFlag(r, c);
+        return;
+      }
+
       if (cell.revealed && cell.number > 0 && !cell.mine) {
         performChord(r, c);
         return;
@@ -1772,21 +1804,26 @@ function stopChaosGlitchLoop() {
     // подсвечивает мины внутри неё — клетки остаются закрытыми, флаги сам не ставит.
     function updateAbilityUI() {
       radarChargeEl.textContent = radarCharges;
-      radarBtn.disabled = radarCharges <= 0 || gameOver || sixthActive;
+      radarBtn.disabled = radarCharges <= 0 || gameOver || sixthActive || abilityMode === 'markFlag';
       radarBtn.classList.toggle('armed', abilityMode === 'radar');
       radarBtn.setAttribute('aria-pressed', String(abilityMode === 'radar'));
       updateSixthUI();
       updateEchoUI();
       updateShieldUI();
       updateSecondChanceUI();
+      updateMarkFlagUI();
     }
 
     function setAbilityMode(newMode) {
       abilityMode = newMode;
       boardEl.classList.toggle('targeting', !!abilityMode);
-      abilityHintEl.textContent = abilityMode === 'radar'
-        ? 'Радар наведён — выберите клетку в центре области 3×3'
-        : '';
+      if (abilityMode === 'radar') {
+        abilityHintEl.textContent = 'Радар наведён — выберите клетку в центре области 3×3';
+      } else if (abilityMode === 'markFlag') {
+        abilityHintEl.textContent = 'Выберите клетку, где по-вашему стоит мина';
+      } else {
+        abilityHintEl.textContent = '';
+      }
       updateAbilityUI();
     }
 
@@ -1852,6 +1889,95 @@ function stopChaosGlitchLoop() {
       vibrate(20);
     }
 
+    // "Особый флажок": гадаем клетку с миной. Угадали — приблизительная
+    // картина в области 9×9 (часть реальных мин намеренно скрыта, плюс
+    // подмешаны пара ложных меток). Не угадали — просто промах. Заряд
+    // расходуется в обоих случаях — это ставка, а не гарантированная разведка.
+    function useMarkFlag(r, c) {
+      if (markFlagCharges <= 0) return;
+
+      const cell = board[r][c];
+      if (!cell.exists || cell.flagged || cell.revealed) {
+        setAbilityMode(null);
+        return;
+      }
+
+      markFlagCharges--;
+      setAbilityMode(null);
+
+      if (firstClick) {
+        placeMines(r, c);
+        firstClick = false;
+        startTimer();
+        updateMineCounter();
+      }
+
+      if (cell.mine) {
+        spawnRadarSweep(r, c);
+
+        const areaCells = [];
+        for (let dr = -MARKFLAG_RADIUS; dr <= MARKFLAG_RADIUS; dr++) {
+          for (let dc = -MARKFLAG_RADIUS; dc <= MARKFLAG_RADIUS; dc++) {
+            const nr = r + dr, nc = c + dc;
+            if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+            const ncell = board[nr][nc];
+            if (!ncell.exists || ncell.revealed || ncell.flagged) continue;
+            areaCells.push({ r: nr, c: nc, cell: ncell });
+          }
+        }
+
+        const realMines = areaCells.filter((entry) => entry.cell.mine);
+        const safeCells = areaCells.filter((entry) => !entry.cell.mine);
+        shuffleArray(realMines);
+        shuffleArray(safeCells);
+
+        const shownRealCount = Math.max(0, Math.round(realMines.length * (1 - MARKFLAG_MISS_RATE)));
+        const shownReal = realMines.slice(0, shownRealCount);
+        const decoys = safeCells.slice(0, Math.min(MARKFLAG_DECOY_COUNT, safeCells.length));
+
+        areaCells.forEach(({ r: nr, c: nc }) => {
+          const idx = nr * COLS + nc;
+          const el = boardEl.children[idx];
+          if (!el) return;
+          el.classList.add('radar-area');
+          el.addEventListener('animationend', () => el.classList.remove('radar-area'), { once: true });
+        });
+
+        shownReal.concat(decoys).forEach(({ r: nr, c: nc }) => {
+          const idx = nr * COLS + nc;
+          const el = boardEl.children[idx];
+          if (!el) return;
+          el.classList.add('markflag-mine');
+          setTimeout(() => el.classList.remove('markflag-mine'), MARKFLAG_DURATION_MS);
+        });
+
+        abilityHintEl.textContent = 'Есть! Но карта приблизительная — не всему верь.';
+        setTimeout(() => {
+          if (abilityHintEl.textContent.startsWith('Есть!')) abilityHintEl.textContent = '';
+        }, 3000);
+
+        playSound('markflagHit');
+        vibrate([20, 30, 20]);
+      } else {
+        const idx = r * COLS + c;
+        const el = boardEl.children[idx];
+        if (el) {
+          el.classList.add('markflag-miss');
+          setTimeout(() => el.classList.remove('markflag-miss'), 500);
+        }
+
+        abilityHintEl.textContent = 'Ах, какой обидный промах!';
+        setTimeout(() => {
+          if (abilityHintEl.textContent.startsWith('Ах, какой')) abilityHintEl.textContent = '';
+        }, 2500);
+
+        playSound('markflagMiss');
+        vibrate(15);
+      }
+
+      updateAbilityUI();
+    }
+
     // СПОСОБНОСТИ: ШЕСТОЕ ЧУВСТВО 
     // На несколько секунд курсор/палец превращается в "металлодетектор":
     // рядом с закрытыми минами едва проступает красная аура, усиливающаяся
@@ -1862,7 +1988,7 @@ function stopChaosGlitchLoop() {
 
     function updateSixthUI() {
       sixthChargeEl.textContent = sixthCharges;
-      sixthBtn.disabled = sixthCharges <= 0 || gameOver || sixthActive || abilityMode === 'radar';
+      sixthBtn.disabled = sixthCharges <= 0 || gameOver || sixthActive || abilityMode === 'radar' || abilityMode === 'markFlag';
       sixthBtn.setAttribute('aria-pressed', String(sixthActive));
     }
 
@@ -2174,6 +2300,7 @@ function resetGame() {
     if (echoTimeoutId) { clearTimeout(echoTimeoutId); echoTimeoutId = null; }
     minimapEchoCanvas.classList.remove('pulse');
     echoCharges = 1;
+    secondChanceCharges = 1;
     updateAbilityUI();
 
     resizeMinimap();
@@ -2382,8 +2509,12 @@ function resetGame() {
       modeFlagBtn.addEventListener('click', () => setMode('flag'));
 
       radarBtn.addEventListener('click', () => {
-        if (gameOver || radarCharges <= 0 || sixthActive) return;
+        if (gameOver || radarCharges <= 0 || sixthActive || abilityMode === 'markFlag') return;
         setAbilityMode(abilityMode === 'radar' ? null : 'radar');
+      });
+      markFlagBtn.addEventListener('click', () => {
+        if (gameOver || markFlagCharges <= 0 || sixthActive || abilityMode === 'radar') return;
+        setAbilityMode(abilityMode === 'markFlag' ? null : 'markFlag');
       });
       sixthBtn.addEventListener('click', () => {
         if (gameOver || sixthCharges <= 0 || sixthActive || abilityMode === 'radar') return;
