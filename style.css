@@ -900,12 +900,17 @@ body.chaos-mode .mine-counter {
   color: var(--text-muted);
 }
 
-/* Способности, доступные только в хаос-режиме (щит, особый флажок) */
+/* Способности, доступные только в хаос-режиме (щит, особый флажок,
+   второй шанс) — и наоборот, способности "обычного" режима (шестое
+   чувство, эхолот), которые в хаосе почти бесполезны и там прячутся. */
 .ability-btn-chaos-only {
   display: none;
 }
 body.chaos-mode .ability-btn-chaos-only {
   display: flex;
+}
+body.chaos-mode .ability-btn-classic {
+  display: none;
 }
 .ability-btn-shield.depleted {
   opacity: 0.5;

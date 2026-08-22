@@ -1,8 +1,3 @@
-// ============================================================
-// 04-render-interaction.js — Рендер поля, звук, визуальные эффекты, обработка кликов/чординга, победа/поражение
-// Часть 4/8 игры «Сапёр». Подключать <script> тегами строго в этом порядке (см. README-split.md).
-// ============================================================
-
     function renderBoard() {
       boardEl.innerHTML = '';
       boardEl.classList.toggle('breathing-enabled', countExistingCells() <= BREATHING_MAX_CELLS);
